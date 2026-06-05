@@ -1,0 +1,28 @@
+services:
+  postgres:
+    restart: unless-stopped
+    volumes:
+      - ${APP_DATA_ROOT:-./.data}/postgres:/var/lib/postgresql/data
+
+  api:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    volumes:
+      - ${APP_DATA_ROOT:-./.data}/uploads:/app/uploads
+
+  worker:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+
+  dashboard:
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+
+  adminer:
+    restart: unless-stopped
+
+  cloudflared:
+    restart: unless-stopped

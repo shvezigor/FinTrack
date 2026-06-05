@@ -1,0 +1,15 @@
+{
+  "name": "@resource-manager/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@resource-manager/server": "file:../../packages/server",
+    "@resource-manager/shared": "file:../../packages/shared"
+  }
+}

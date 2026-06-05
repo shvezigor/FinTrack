@@ -1,0 +1,811 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PaymentHint {
+  CASH
+  CARD
+  UNKNOWN
+}
+
+enum TelegramEntryStatus {
+  PARSED
+  NEEDS_REVIEW
+  IGNORED
+  MATCHED
+}
+
+enum ExpenseSourceStatus {
+  TELEGRAM_ONLY
+  MONO_ONLY
+  MATCHED
+  NEEDS_REVIEW
+}
+
+enum PaymentType {
+  CASH
+  CARD
+  UNKNOWN
+}
+
+enum MatchingCandidateStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  AUTO_ACCEPTED
+}
+
+enum JobStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+}
+
+enum SessionSource {
+  WEB_PASSWORD
+  GOOGLE
+  TELEGRAM
+}
+
+enum AuthProvider {
+  GOOGLE
+}
+
+enum AccountKind {
+  CASH
+  CARD
+  BANK
+  INVESTMENT
+  SAVINGS
+  OTHER
+}
+
+enum BudgetPeriod {
+  MONTHLY
+  WEEKLY
+  YEARLY
+}
+
+enum GoalStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum LiabilityKind {
+  LOAN
+  CREDIT_CARD
+  INSTALLMENT
+  MORTGAGE
+  PERSONAL_DEBT
+  TAX
+  OTHER
+}
+
+enum LiabilityStatus {
+  ACTIVE
+  PAUSED
+  PAID
+  ARCHIVED
+}
+
+enum LoanStatus {
+  ACTIVE
+  RETURNED
+  OVERDUE
+  CANCELLED
+  ARCHIVED
+}
+
+enum IntegrationProvider {
+  MONOBANK
+  GOOGLE_SHEETS
+  GOOGLE_DRIVE
+  TELEGRAM
+  OPENAI
+  ANTHROPIC
+  GEMINI
+  OPENROUTER
+  PRIVATBANK
+  DROPBOX
+  MANUAL
+}
+
+enum IntegrationStatus {
+  CONNECTED
+  DISCONNECTED
+  NEEDS_ATTENTION
+}
+
+enum SubscriptionTier {
+  FREE
+  PREMIUM
+  TEAM
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAUSED
+  CANCELED
+  TRIALING
+  PAST_DUE
+}
+
+model User {
+  id                      String                   @id @default(cuid())
+  email                   String                   @unique
+  name                    String?
+  phone                   String?
+  avatarUrl               String?
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  accounts                FinancialAccount[]
+  auditLogs               AuditLog[]
+  budgets                 Budget[]
+  categories              Category[]
+  expenses                Expense[]
+  goalContributions       GoalContribution[]
+  goals                   Goal[]
+  incomes                 Income[]
+  integrations            IntegrationConnection[]
+  liabilities             Liability[]
+  liabilityPayments       LiabilityPayment[]
+  loans                   Loan[]
+  notifications           UserNotification[]
+  notificationPreferences NotificationPreference[]
+  oauthAccounts           OAuthAccount[]
+  passwordCredential      PasswordCredential?
+  passwordResets          PasswordReset[]
+  preferences             UserPreference?
+  roles                   UserRoleAssignment[]
+  securitySettings        UserSecuritySettings?
+  secrets                 UserSecret[]
+  sessions                UserSession[]
+  subscription            UserSubscription?
+  tags                    Tag[]
+  telegramAccounts        TelegramAccount[]
+  botConversationStates   BotConversationState[]
+  telegramEntries         TelegramEntry[]
+  monoTransactions        MonoTransaction[]
+}
+
+model UserPreference {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  locale       String   @default("uk")
+  timezone     String   @default("Europe/Kyiv")
+  currencyCode Int      @default(980)
+  numberFormat String   @default("SPACE_COMMA")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model UserSecuritySettings {
+  id                        String   @id @default(cuid())
+  userId                    String   @unique
+  twoFactorEnabled          Boolean  @default(false)
+  actionConfirmationEnabled Boolean  @default(true)
+  autoLogoutMinutes         Int      @default(30)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+  user                      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Role {
+  id          String               @id @default(cuid())
+  key         String               @unique
+  name        String
+  description String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  users       UserRoleAssignment[]
+}
+
+model UserRoleAssignment {
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@index([roleId])
+}
+
+model UserSubscription {
+  id           String             @id @default(cuid())
+  userId       String             @unique
+  tier         SubscriptionTier   @default(FREE)
+  status       SubscriptionStatus @default(ACTIVE)
+  priceMonthly Decimal            @default(0) @db.Decimal(14, 2)
+  currencyCode Int                @default(980)
+  renewsAt     DateTime?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  user         User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tier, status])
+}
+
+model UserSecret {
+  id             String              @id @default(cuid())
+  userId         String
+  provider       IntegrationProvider
+  keyName        String
+  label          String?
+  valueEncrypted String
+  keyVersion     Int                 @default(1)
+  lastUsedAt     DateTime?
+  revokedAt      DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider, keyName])
+  @@index([provider, revokedAt])
+  @@index([userId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  action     String
+  entityType String?
+  entityId   String?
+  metadata   Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
+}
+
+model PasswordCredential {
+  userId       String   @id
+  passwordHash String
+  passwordSalt String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt])
+}
+
+model UserSession {
+  id         String        @id @default(cuid())
+  userId     String
+  tokenHash  String        @unique
+  source     SessionSource @default(WEB_PASSWORD)
+  expiresAt  DateTime
+  lastSeenAt DateTime?
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([userId])
+}
+
+model OAuthAccount {
+  id                   String       @id @default(cuid())
+  userId               String
+  provider             AuthProvider
+  providerAccountId    String
+  email                String?
+  accessTokenEncrypted String?
+  refreshTokenEncrypted String?
+  expiresAt            DateTime?
+  rawProfile           Json?
+  createdAt            DateTime     @default(now())
+  updatedAt            DateTime     @updatedAt
+  user                 User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model AuthState {
+  state      String       @id
+  provider   AuthProvider
+  redirectTo String?
+  expiresAt  DateTime
+  createdAt  DateTime     @default(now())
+}
+
+model TelegramAccount {
+  id             String   @id @default(cuid())
+  userId         String?
+  telegramUserId String   @unique
+  telegramChatId String?
+  username       String?
+  firstName      String?
+  lastName       String?
+  isAdmin        Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([telegramChatId])
+  @@index([userId])
+}
+
+model BotConversationState {
+  id             String   @id @default(cuid())
+  userId         String?
+  telegramChatId String
+  telegramUserId String
+  kind           String
+  payload        Json
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([telegramChatId, telegramUserId])
+  @@index([expiresAt])
+  @@index([userId])
+}
+
+model FinancialAccount {
+  id            String               @id @default(cuid())
+  userId        String?
+  provider      IntegrationProvider  @default(MANUAL)
+  externalId    String?
+  name          String
+  type          AccountKind          @default(CARD)
+  currencyCode  Int                  @default(980)
+  balance       Decimal              @default(0) @db.Decimal(14, 2)
+  maskedPan     String?
+  isPrimary     Boolean              @default(false)
+  isActive      Boolean              @default(true)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  expenses      Expense[]
+  incomes       Income[]
+  liabilities   Liability[]
+  monoTransactions MonoTransaction[]
+  user          User?                @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([provider, externalId])
+  @@index([userId])
+}
+
+model Category {
+  id             String          @id @default(cuid())
+  userId         String?
+  slug           String          @unique
+  name           String
+  dashboardGroup String
+  color          String
+  icon           String          @default("expenses")
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  aliases        CategoryAlias[]
+  budgets        Budget[]
+  entries        TelegramEntry[]
+  expenses       Expense[]
+  user           User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+}
+
+model CategoryAlias {
+  id              String   @id @default(cuid())
+  categoryId      String
+  alias           String
+  normalizedAlias String   @unique
+  createdAt       DateTime @default(now())
+  category        Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+}
+
+model TelegramEntry {
+  id                     String              @id @default(cuid())
+  userId                 String?
+  telegramMessageId      String
+  telegramChatId         String
+  telegramUserId         String?
+  timestamp              DateTime
+  rawText                String
+  rawCategory            String?
+  normalizedCategoryText String?
+  parsedAmount           Decimal?            @db.Decimal(14, 2)
+  parsedCurrency         Int?                @default(980)
+  categoryId             String?
+  paymentHint            PaymentHint         @default(UNKNOWN)
+  status                 TelegramEntryStatus @default(PARSED)
+  createdAt              DateTime            @default(now())
+  updatedAt              DateTime            @updatedAt
+  category               Category?           @relation(fields: [categoryId], references: [id])
+  expense                Expense?
+  matchingCandidates     MatchingCandidate[]
+  user                   User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([telegramChatId, telegramMessageId])
+  @@index([timestamp])
+  @@index([status])
+  @@index([userId])
+}
+
+model MonoTransaction {
+  id                  String              @id @default(cuid())
+  userId              String?
+  financialAccountId  String?
+  monoTransactionId   String              @unique
+  accountId           String
+  timestamp           DateTime
+  description         String?
+  mcc                 Int?
+  originalMcc         Int?
+  amount              Int
+  operationAmount     Int?
+  currencyCode        Int                 @default(980)
+  commissionRate      Int?
+  cashbackAmount      Int?
+  balance             Int?
+  hold                Boolean             @default(false)
+  comment             String?
+  counterName         String?
+  receiptId           String?
+  rawJson             Json
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  expense             Expense?
+  incomes             Income[]
+  financialAccount    FinancialAccount?   @relation(fields: [financialAccountId], references: [id], onDelete: SetNull)
+  matchingCandidates  MatchingCandidate[]
+  user                User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([timestamp])
+  @@index([accountId])
+  @@index([financialAccountId])
+  @@index([userId])
+}
+
+model Expense {
+  id                 String              @id @default(cuid())
+  userId             String?
+  financialAccountId String?
+  date               DateTime
+  amount             Decimal             @db.Decimal(14, 2)
+  currencyCode       Int                 @default(980)
+  categoryId         String?
+  description        String?
+  sourceStatus       ExpenseSourceStatus @default(NEEDS_REVIEW)
+  paymentType        PaymentType         @default(UNKNOWN)
+  telegramEntryId    String?             @unique
+  monoTransactionId  String?             @unique
+  confidence         Decimal?            @db.Decimal(5, 2)
+  manualOverride     Boolean             @default(false)
+  sheetRow           Int?
+  exportedToSheetsAt DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  category           Category?           @relation(fields: [categoryId], references: [id])
+  financialAccount   FinancialAccount?   @relation(fields: [financialAccountId], references: [id], onDelete: SetNull)
+  goalContributions  GoalContribution[]
+  telegramEntry      TelegramEntry?      @relation(fields: [telegramEntryId], references: [id])
+  monoTransaction    MonoTransaction?    @relation(fields: [monoTransactionId], references: [id])
+  tags               ExpenseTag[]
+  user               User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([sourceStatus])
+  @@index([categoryId])
+  @@index([financialAccountId])
+  @@index([userId])
+}
+
+model Income {
+  id                 String            @id @default(cuid())
+  userId             String?
+  financialAccountId String?
+  date               DateTime
+  amount             Decimal           @db.Decimal(14, 2)
+  currencyCode       Int               @default(980)
+  source             String
+  description        String?
+  status             String            @default("RECEIVED")
+  monoTransactionId  String?
+  manualOverride     Boolean           @default(false)
+  sheetRow           Int?
+  exportedToSheetsAt DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  financialAccount   FinancialAccount? @relation(fields: [financialAccountId], references: [id], onDelete: SetNull)
+  monoTransaction    MonoTransaction?  @relation(fields: [monoTransactionId], references: [id])
+  tags               IncomeTag[]
+  user               User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([financialAccountId])
+  @@index([monoTransactionId])
+  @@index([userId])
+}
+
+model Budget {
+  id         String       @id @default(cuid())
+  userId     String?
+  categoryId String?
+  name       String
+  period     BudgetPeriod @default(MONTHLY)
+  month      DateTime
+  limit      Decimal      @db.Decimal(14, 2)
+  color      String       @default("#22c55e")
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+  category   Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  user       User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([categoryId])
+  @@index([month])
+  @@index([userId])
+}
+
+model Goal {
+  id           String             @id @default(cuid())
+  userId       String?
+  name         String
+  description  String?
+  targetAmount Decimal            @db.Decimal(14, 2)
+  savedAmount  Decimal            @default(0) @db.Decimal(14, 2)
+  currencyCode Int                @default(980)
+  deadline     DateTime?
+  status       GoalStatus         @default(ACTIVE)
+  color        String             @default("#22c55e")
+  imageUrl     String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  contributions GoalContribution[]
+  user         User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([deadline])
+  @@index([status])
+  @@index([userId])
+}
+
+model GoalContribution {
+  id              String   @id @default(cuid())
+  userId          String?
+  goalId          String
+  sourceExpenseId String?
+  amount          Decimal  @db.Decimal(14, 2)
+  date            DateTime @default(now())
+  note            String?
+  createdAt       DateTime @default(now())
+  expense         Expense? @relation(fields: [sourceExpenseId], references: [id], onDelete: SetNull)
+  goal            Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  user            User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([goalId])
+  @@index([sourceExpenseId])
+  @@index([userId])
+}
+
+model Liability {
+  id                String            @id @default(cuid())
+  userId            String?
+  financialAccountId String?
+  name              String
+  kind              LiabilityKind
+  creditor          String?
+  description       String?
+  currencyCode      Int               @default(980)
+  originalAmount    Decimal           @db.Decimal(14, 2)
+  currentBalance    Decimal           @db.Decimal(14, 2)
+  minimumPayment    Decimal           @default(0) @db.Decimal(14, 2)
+  interestRate      Decimal?          @db.Decimal(5, 2)
+  paymentDay        Int?
+  startDate         DateTime          @default(now())
+  targetCloseDate   DateTime?
+  status            LiabilityStatus   @default(ACTIVE)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  financialAccount  FinancialAccount? @relation(fields: [financialAccountId], references: [id], onDelete: SetNull)
+  payments          LiabilityPayment[]
+  user              User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([financialAccountId])
+  @@index([kind])
+  @@index([paymentDay])
+  @@index([status])
+  @@index([targetCloseDate])
+  @@index([userId])
+}
+
+model LiabilityPayment {
+  id          String     @id @default(cuid())
+  userId      String?
+  liabilityId String
+  amount      Decimal    @db.Decimal(14, 2)
+  date        DateTime   @default(now())
+  note        String?
+  createdAt   DateTime   @default(now())
+  liability   Liability  @relation(fields: [liabilityId], references: [id], onDelete: Cascade)
+  user        User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([date])
+  @@index([liabilityId])
+  @@index([userId])
+}
+
+model Loan {
+  id                  String    @id @default(cuid())
+  userId              String?
+  recipientName       String
+  amount              Decimal   @db.Decimal(14, 2)
+  currencyCode        Int       @default(980)
+  dateLent            DateTime  @default(now())
+  plannedReturnDate   DateTime?
+  actualReturnDate    DateTime?
+  description         String?
+  status              LoanStatus @default(ACTIVE)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  user                User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([userId])
+  @@index([plannedReturnDate])
+}
+
+model Tag {
+  id        String      @id @default(cuid())
+  userId    String?
+  name      String
+  color     String      @default("#64748b")
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  expenses  ExpenseTag[]
+  incomes   IncomeTag[]
+  user      User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
+model ExpenseTag {
+  expenseId String
+  tagId     String
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+  tag       Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([expenseId, tagId])
+}
+
+model IncomeTag {
+  incomeId String
+  tagId    String
+  income   Income @relation(fields: [incomeId], references: [id], onDelete: Cascade)
+  tag      Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([incomeId, tagId])
+}
+
+model IntegrationConnection {
+  id                String              @id @default(cuid())
+  userId            String?
+  provider          IntegrationProvider
+  status            IntegrationStatus   @default(DISCONNECTED)
+  label             String
+  externalAccountId String?
+  lastSyncAt        DateTime?
+  metadata          Json?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  user              User?               @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([provider])
+  @@index([userId])
+}
+
+model NotificationPreference {
+  id        String   @id @default(cuid())
+  userId    String?
+  key       String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, key])
+  @@index([userId])
+}
+
+model UserNotification {
+  id              String   @id @default(cuid())
+  userId          String
+  key             String
+  title           String
+  message         String
+  severity        String   @default("info")
+  actionUrl       String?
+  actionLabel     String?
+  metadata        Json?
+  dedupeKey       String?
+  isRead          Boolean  @default(false)
+  readAt          DateTime?
+  deliverTelegram Boolean  @default(false)
+  telegramSentAt  DateTime?
+  telegramError   String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([userId, isRead, createdAt])
+  @@index([deliverTelegram, telegramSentAt, createdAt])
+  @@index([userId, dedupeKey])
+}
+
+model MatchingCandidate {
+  id                String                  @id @default(cuid())
+  telegramEntryId   String
+  monoTransactionId String
+  score             Decimal                 @db.Decimal(5, 2)
+  reason            String
+  status            MatchingCandidateStatus @default(PENDING)
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  telegramEntry     TelegramEntry           @relation(fields: [telegramEntryId], references: [id], onDelete: Cascade)
+  monoTransaction   MonoTransaction         @relation(fields: [monoTransactionId], references: [id], onDelete: Cascade)
+
+  @@unique([telegramEntryId, monoTransactionId])
+  @@index([status])
+}
+
+model AppSetting {
+  key            String   @id
+  valueEncrypted String?
+  valuePlain     String?
+  isSecret       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model SetupState {
+  id             String   @id @default(cuid())
+  telegramChatId String
+  telegramUserId String
+  step           String
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([telegramChatId, telegramUserId])
+}
+
+model Job {
+  id          String    @id @default(cuid())
+  type        String
+  payloadJson Json
+  status      JobStatus @default(PENDING)
+  attempts    Int       @default(0)
+  lastError   String?
+  runAfter    DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status, runAfter])
+  @@index([type])
+}

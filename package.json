@@ -1,0 +1,32 @@
+{
+  "name": "resource-manager",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "dev:api": "npm --workspace apps/api run dev",
+    "dev:dashboard": "npm --workspace apps/dashboard run dev",
+    "dev:worker": "npm --workspace apps/worker run dev",
+    "format": "prettier --write .",
+    "test": "tsx --test packages/shared/src/*.test.ts packages/server/src/**/*.test.ts apps/api/src/**/*.test.ts",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "prettier": "latest",
+    "prisma": "^6.19.3",
+    "tsx": "latest",
+    "typescript": "latest"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.19.3"
+  }
+}
