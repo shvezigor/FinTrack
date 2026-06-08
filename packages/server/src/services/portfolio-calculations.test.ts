@@ -12,7 +12,7 @@ import {
 } from "./portfolio-calculations.js";
 
 describe("portfolio calculations", () => {
-  test("separates actual income from planned and pending income", () => {
+  test("separates actual income from forecast-only planned income", () => {
     const incomes = [
       { amount: new Prisma.Decimal(1200), status: "RECEIVED" },
       { amount: new Prisma.Decimal(300), status: "received" },
@@ -22,10 +22,11 @@ describe("portfolio calculations", () => {
     ];
 
     assert.equal(calculateActualIncomeTotal(incomes), 1500);
-    assert.equal(calculatePlannedIncomeTotal(incomes), 5700);
+    assert.equal(calculatePlannedIncomeTotal(incomes), 5000);
     assert.equal(isActualIncomeStatus("RECEIVED"), true);
     assert.equal(isActualIncomeStatus("PENDING"), false);
     assert.equal(isPlannedIncomeStatus("PLANNED"), true);
+    assert.equal(isPlannedIncomeStatus("PENDING"), false);
     assert.equal(isPlannedIncomeStatus("FAILED"), false);
     assert.equal(normalizeIncomeStatus("unknown"), "RECEIVED");
   });

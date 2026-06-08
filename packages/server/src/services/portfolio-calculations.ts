@@ -28,8 +28,7 @@ export function normalizeIncomeStatus(status?: string) {
 }
 
 export function isPlannedIncomeStatus(status: string) {
-  const normalized = normalizeIncomeStatus(status);
-  return normalized === "PLANNED" || normalized === "PENDING";
+  return normalizeIncomeStatus(status) === "PLANNED";
 }
 
 export function isActualIncomeStatus(status: string) {
