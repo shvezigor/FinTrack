@@ -6,12 +6,13 @@ import { createPortal } from "react-dom";
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ComposedChart, Line, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import * as XLSX from "xlsx";
 import { emptySnapshot, fallbackBudgets, fallbackCategories, fallbackExpenses, fallbackGoals, fallbackIncomes, heatmapRows, navItems, trendData } from "./finance-data";
+import { apiOrigin, authErrorText, authHeaders, defaultEmail } from "./dashboard-api";
+import { dateRangeKey, daysInRange, endOfDay, formatDayLabel, formatMonthLabel, formatRangeLabel, formatTableDate, isDateInRange, isSameCalendarDay, matchesDateRange, monthRangeFromDate, normalizeDateRange, startOfDay } from "./dashboard-date-utils";
+import { budgetColumns, dashboardTransactionColumns, defaultBudgetColumnWidths, defaultDashboardTransactionColumnWidths, defaultIncomeColumnWidths, defaultTransactionColumnWidths, incomeColumns, transactionColumns } from "./dashboard-table-config";
 import { Icon } from "./icons";
 import { LanguageSwitcher, useI18n } from "./i18n";
 import { getCurrencyOptions, getLocaleOptions, getNumberFormatOptions, getTimeZoneOptions } from "./preferences-options";
 import { emitAppToast, handleValidationCapture, ToastPopup, useAppToastHost } from "./toast-feedback";
-const apiOrigin = process.env.NEXT_PUBLIC_API_PUBLIC_URL ?? "http://localhost:3001";
-const defaultEmail = "admin@fintrack.local";
 const indicatorTooltips = {
     en: {
         dashboard: {
@@ -154,232 +155,6 @@ function useIndicatorTooltips() {
     const { lang } = useI18n();
     return indicatorTooltips[lang] ?? indicatorTooltips.en;
 }
-const transactionColumns = [
-    {
-        defaultWidth: 165,
-        key: "date",
-        label: "table.date",
-        minWidth: 135,
-        sortable: true
-    },
-    {
-        defaultWidth: 95,
-        key: "type",
-        label: "table.type",
-        minWidth: 86,
-        sortable: true
-    },
-    {
-        defaultWidth: 145,
-        key: "category",
-        label: "table.category",
-        minWidth: 112,
-        sortable: true
-    },
-    {
-        defaultWidth: 360,
-        key: "description",
-        label: "table.description",
-        minWidth: 170,
-        sortable: true
-    },
-    {
-        defaultWidth: 170,
-        key: "account",
-        label: "table.account",
-        minWidth: 135,
-        sortable: true
-    },
-    {
-        defaultWidth: 125,
-        key: "status",
-        label: "table.status",
-        minWidth: 112,
-        sortable: true
-    },
-    {
-        defaultWidth: 115,
-        key: "tag",
-        label: "table.tags",
-        minWidth: 90,
-        sortable: true
-    },
-    {
-        align: "end",
-        defaultWidth: 130,
-        key: "amount",
-        label: "table.amount",
-        minWidth: 100,
-        sortable: true
-    },
-    {
-        align: "end",
-        defaultWidth: 76,
-        key: "actions",
-        label: "",
-        minWidth: 72
-    }
-];
-const defaultTransactionColumnWidths = Object.fromEntries(transactionColumns.map((column)=>[
-        column.key,
-        column.defaultWidth
-    ]));
-const incomeColumns = [
-    {
-        defaultWidth: 150,
-        key: "date",
-        label: "table.date",
-        minWidth: 130,
-        sortable: true
-    },
-    {
-        defaultWidth: 220,
-        key: "source",
-        label: "table.source",
-        minWidth: 150,
-        sortable: true
-    },
-    {
-        defaultWidth: 360,
-        key: "description",
-        label: "table.description",
-        minWidth: 180,
-        sortable: true
-    },
-    {
-        defaultWidth: 170,
-        key: "account",
-        label: "table.account",
-        minWidth: 135,
-        sortable: true
-    },
-    {
-        defaultWidth: 140,
-        key: "incomeType",
-        label: "form.incomeType",
-        minWidth: 110,
-        sortable: true
-    },
-    {
-        defaultWidth: 135,
-        key: "status",
-        label: "table.status",
-        minWidth: 112,
-        sortable: true
-    },
-    {
-        align: "end",
-        defaultWidth: 135,
-        key: "amount",
-        label: "table.amount",
-        minWidth: 110,
-        sortable: true
-    },
-    {
-        align: "end",
-        defaultWidth: 76,
-        key: "actions",
-        label: "",
-        minWidth: 72
-    }
-];
-const defaultIncomeColumnWidths = Object.fromEntries(incomeColumns.map((column)=>[
-        column.key,
-        column.defaultWidth
-    ]));
-const budgetColumns = [
-    {
-        defaultWidth: 240,
-        key: "category",
-        label: "table.category",
-        minWidth: 170,
-        sortable: true
-    },
-    {
-        align: "end",
-        defaultWidth: 120,
-        key: "limit",
-        label: "table.budget",
-        minWidth: 100,
-        sortable: true
-    },
-    {
-        align: "end",
-        defaultWidth: 125,
-        key: "spent",
-        label: "table.spent",
-        minWidth: 110,
-        sortable: true
-    },
-    {
-        align: "end",
-        defaultWidth: 125,
-        key: "remaining",
-        label: "table.remaining",
-        minWidth: 110,
-        sortable: true
-    },
-    {
-        defaultWidth: 220,
-        key: "progress",
-        label: "table.progress",
-        minWidth: 180,
-        sortable: true
-    },
-    {
-        align: "end",
-        defaultWidth: 76,
-        key: "actions",
-        label: "",
-        minWidth: 72
-    }
-];
-const defaultBudgetColumnWidths = Object.fromEntries(budgetColumns.map((column)=>[
-        column.key,
-        column.defaultWidth
-    ]));
-const dashboardTransactionColumns = [
-    {
-        defaultWidth: 145,
-        key: "date",
-        label: "table.date",
-        minWidth: 120,
-        sortable: true
-    },
-    {
-        defaultWidth: 170,
-        key: "category",
-        label: "table.category",
-        minWidth: 130,
-        sortable: true
-    },
-    {
-        defaultWidth: 320,
-        key: "description",
-        label: "table.description",
-        minWidth: 170,
-        sortable: true
-    },
-    {
-        defaultWidth: 120,
-        key: "type",
-        label: "table.type",
-        minWidth: 95,
-        sortable: true
-    },
-    {
-        align: "end",
-        defaultWidth: 120,
-        key: "amount",
-        label: "table.amount",
-        minWidth: 100,
-        sortable: true
-    }
-];
-const defaultDashboardTransactionColumnWidths = Object.fromEntries(dashboardTransactionColumns.map((column)=>[
-        column.key,
-        column.defaultWidth
-    ]));
 const categoryIconOptions = [
     { color: "#22c55e", icon: "cart", label: "Продукти" },
     { color: "#3b82f6", icon: "home", label: "Дім / комунальні" },
@@ -11930,22 +11705,6 @@ function RateRow({ rate }) {
         ]
     });
 }
-function formatMonthLabel(date, lang) {
-    const locale = lang === "en" ? "en-US" : "uk-UA";
-    const value = new Intl.DateTimeFormat(locale, {
-        month: "long",
-        year: "numeric"
-    }).format(date);
-    return value.charAt(0).toLocaleUpperCase(locale) + value.slice(1);
-}
-function formatDayLabel(date, lang) {
-    const locale = lang === "en" ? "en-US" : "uk-UA";
-    return new Intl.DateTimeFormat(locale, {
-        day: "numeric",
-        month: "short",
-        year: "numeric"
-    }).format(date);
-}
 function latestDateFromRows(rows) {
     const latest = rows.reduce((current, row)=>{
         const candidate = new Date(row.date);
@@ -11955,60 +11714,6 @@ function latestDateFromRows(rows) {
 }
 function latestRangeFromRows(rows) {
     return monthRangeFromDate(latestDateFromRows(rows));
-}
-function monthRangeFromDate(date) {
-    return {
-        from: startOfDay(new Date(date.getFullYear(), date.getMonth(), 1)),
-        to: endOfDay(new Date(date.getFullYear(), date.getMonth() + 1, 0))
-    };
-}
-function normalizeDateRange(range) {
-    const from = startOfDay(range.from);
-    const to = endOfDay(range.to);
-    return from.getTime() <= to.getTime() ? {
-        from,
-        to
-    } : {
-        from: startOfDay(range.to),
-        to: endOfDay(range.from)
-    };
-}
-function startOfDay(date) {
-    const nextDate = new Date(date);
-    nextDate.setHours(0, 0, 0, 0);
-    return nextDate;
-}
-function endOfDay(date) {
-    const nextDate = new Date(date);
-    nextDate.setHours(23, 59, 59, 999);
-    return nextDate;
-}
-function dateRangeKey(range) {
-    const normalized = normalizeDateRange(range);
-    return `${normalized.from.toISOString()}_${normalized.to.toISOString()}`;
-}
-function matchesDateRange(value, range) {
-    const time = new Date(value).getTime();
-    const normalized = normalizeDateRange(range);
-    return time >= normalized.from.getTime() && time <= normalized.to.getTime();
-}
-function daysInRange(range) {
-    const normalized = normalizeDateRange(range);
-    const dayMs = 24 * 60 * 60 * 1000;
-    return Math.max(1, Math.ceil((normalized.to.getTime() - normalized.from.getTime() + 1) / dayMs));
-}
-function formatRangeLabel(range, lang) {
-    const normalized = normalizeDateRange(range);
-    if (isSameCalendarDay(normalized.from, normalized.to)) return formatTableDate(normalized.from.toISOString());
-    return `${formatTableDate(normalized.from.toISOString())} – ${formatTableDate(normalized.to.toISOString())}`;
-}
-function isDateInRange(date, range) {
-    const normalized = normalizeDateRange(range);
-    const time = startOfDay(date).getTime();
-    return time >= normalized.from.getTime() && time <= normalized.to.getTime();
-}
-function isSameCalendarDay(first, second) {
-    return first.getFullYear() === second.getFullYear() && first.getMonth() === second.getMonth() && first.getDate() === second.getDate();
 }
 function groupIncomesBySource(incomes) {
     const colors = [
@@ -12606,26 +12311,11 @@ function isTransferExpense(row) {
     const description = `${row.description ?? ""}`.toLocaleLowerCase("uk-UA");
     return category.includes("переказ") || description.includes("iban") || description.includes("між своїми") || /^[0-9*]{8,}$/.test((row.description ?? "").replace(/\s+/g, ""));
 }
-function authHeaders(token, password, json = false) {
-    const headers = {};
-    if (token && token !== "__cookie__") headers.Authorization = `Bearer ${token}`;
-    if (password && isHeaderSafe(password)) headers["x-dashboard-password"] = password;
-    if (json) headers["Content-Type"] = "application/json";
-    return headers;
-}
-function isHeaderSafe(value) {
-    return /^[\u0009\u0020-\u007e\u0080-\u00ff]*$/.test(value);
-}
 function normalizePage(value) {
     if (value === "admin") {
         return "adminDashboard";
     }
     return allNavigablePageKeys.has(value) ? value : null;
-}
-function authErrorText(value) {
-    if (value === "google_not_configured") return "Google вхід ще не налаштований. Додайте GOOGLE_OAUTH_CLIENT_ID та GOOGLE_OAUTH_CLIENT_SECRET.";
-    if (value === "google_invalid_state") return "Google сесія застаріла. Спробуйте увійти ще раз.";
-    return "Google вхід не завершився. Спробуйте ще раз.";
 }
 function sum(values) {
     return values.reduce((total, value)=>total + value, 0);
@@ -12648,12 +12338,6 @@ function formatDateTime(value) {
         month: "short",
         year: "numeric"
     }).format(new Date(value));
-}
-function formatTableDate(value) {
-    const date = new Date(value);
-    const day = String(date.getDate()).padStart(2, "0");
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    return `${day}.${month}.${date.getFullYear()}`;
 }
 function exportExpenseRowsToWorkbook(rows, range) {
     const worksheet = XLSX.utils.json_to_sheet(rows.map((row)=>({

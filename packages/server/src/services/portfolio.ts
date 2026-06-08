@@ -8,6 +8,13 @@ import { getAiProviderSettings } from "./openai.js";
 import { getConfiguredStatus } from "./settings.js";
 import { getTelegramConnectionState } from "./telegram-link.js";
 import { listUserSecrets } from "./user-secrets.js";
+import {
+  calculateActualIncomeTotal,
+  calculateBudgetUsage,
+  calculateGoalProgress,
+  calculatePlannedIncomeTotal,
+  normalizeIncomeStatus,
+} from "./portfolio-calculations.js";
 
 type MoneyInput = number | string;
 
@@ -213,12 +220,8 @@ export async function getFinanceWorkspaceData(userId?: string) {
   const monthIncomes = incomes.filter((income) => income.date >= month && income.date < nextMonth);
   const monthExpenseTotal = monthExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
   const prevMonthExpenseTotal = prevMonthExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
-  const monthActualIncomeTotal = monthIncomes
-    .filter((income) => isActualIncomeStatus(income.status))
-    .reduce((sum, income) => sum + Number(income.amount), 0);
-  const monthPlannedIncomeTotal = monthIncomes
-    .filter((income) => isPlannedIncomeStatus(income.status))
-    .reduce((sum, income) => sum + Number(income.amount), 0);
+  const monthActualIncomeTotal = calculateActualIncomeTotal(monthIncomes);
+  const monthPlannedIncomeTotal = calculatePlannedIncomeTotal(monthIncomes);
   const monthIncomeTotal = monthIncomes.reduce((sum, income) => sum + Number(income.amount), 0);
   const accountBalance = accounts.reduce((sum, account) => sum + Number(account.balance), 0);
   const byCategory = groupExpensesByCategory(monthExpenses);
@@ -968,28 +971,24 @@ function serializeBudget(
   budget: Prisma.BudgetGetPayload<{ include: { category: true } }>,
   expenses: Array<{ amount: Prisma.Decimal; categoryId: string | null }>,
 ) {
-  const spent = expenses
-    .filter((expense) => expense.categoryId === budget.categoryId)
-    .reduce((sum, expense) => sum + Number(expense.amount), 0);
-  const limit = Number(budget.limit);
+  const usage = calculateBudgetUsage(budget, expenses);
   return {
     category: budget.category?.name ?? budget.name,
     categoryColor: budget.category?.color ?? budget.color,
     categoryIcon: budget.category?.icon ?? inferCategoryIcon(budget.category?.name ?? budget.name),
     categoryId: budget.categoryId ?? null,
     id: budget.id,
-    limit,
+    limit: usage.limit,
     month: budget.month.toISOString(),
     name: budget.name,
-    percent: limit ? Math.round((spent / limit) * 100) : 0,
-    remaining: limit - spent,
-    spent,
+    percent: usage.percent,
+    remaining: usage.remaining,
+    spent: usage.spent,
   };
 }
 
 function serializeGoal(goal: Prisma.GoalGetPayload<{ include: { contributions: true } }>) {
-  const saved = Number(goal.savedAmount);
-  const target = Number(goal.targetAmount);
+  const progress = calculateGoalProgress(goal);
   return {
     color: goal.color,
     contributions: goal.contributions.map((item) => ({
@@ -1003,10 +1002,10 @@ function serializeGoal(goal: Prisma.GoalGetPayload<{ include: { contributions: t
     id: goal.id,
     imageUrl: goal.imageUrl,
     name: goal.name,
-    percent: target ? Math.round((saved / target) * 100) : 0,
-    savedAmount: saved,
+    percent: progress.percent,
+    savedAmount: progress.saved,
     status: goal.status,
-    targetAmount: target,
+    targetAmount: progress.target,
   };
 }
 
@@ -1075,24 +1074,6 @@ function serializeAccount(account: {
     provider: account.provider,
     type: account.type,
   };
-}
-
-function normalizeIncomeStatus(status?: string) {
-  const value = String(status ?? "RECEIVED").trim().toUpperCase();
-  if (value === "PLANNED" || value === "PENDING" || value === "FAILED" || value === "CANCELLED") {
-    return value;
-  }
-  return "RECEIVED";
-}
-
-function isPlannedIncomeStatus(status: string) {
-  const normalized = normalizeIncomeStatus(status);
-  return normalized === "PLANNED" || normalized === "PENDING";
-}
-
-function isActualIncomeStatus(status: string) {
-  const normalized = normalizeIncomeStatus(status);
-  return normalized === "RECEIVED";
 }
 
 function serializeCategory(category: {

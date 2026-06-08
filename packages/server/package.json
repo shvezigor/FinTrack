@@ -13,11 +13,11 @@
     "@resource-manager/shared": "file:../shared",
     "dotenv": "latest",
     "googleapis": "latest",
-    "nodemailer": "latest",
+    "nodemailer": "^8.0.10",
     "openai": "latest",
     "zod": "latest"
   },
   "devDependencies": {
-    "@types/nodemailer": "latest"
+    "@types/nodemailer": "^8.0.0"
   }
 }
