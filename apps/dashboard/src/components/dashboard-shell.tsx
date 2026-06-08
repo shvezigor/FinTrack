@@ -9407,8 +9407,6 @@ function QuickModal({ accounts, budgets = [], categories, generatingGoalImage, i
         setBudgetDraftRows([]);
     }, [
         budgetMonth,
-        budgets,
-        categories,
         editing,
         kind
     ]);
@@ -9461,6 +9459,12 @@ function QuickModal({ accounts, budgets = [], categories, generatingGoalImage, i
                     name: categoryName
                 };
             }));
+    }
+    function handleBudgetLimitChange(index, limit) {
+        setBudgetDraftRows((current)=>current.map((row, rowIndex)=>rowIndex === index ? {
+                    ...row,
+                    limit
+                } : row));
     }
     function handleGoalImageChange(event) {
         const file = event.target.files?.[0];
@@ -9879,12 +9883,13 @@ function QuickModal({ accounts, budgets = [], categories, generatingGoalImage, i
                                             /*#__PURE__*/ _jsx("label", {
                                                 className: "budget-batch-amount",
                                                 children: /*#__PURE__*/ _jsx("input", {
-                                                    defaultValue: row.limit,
                                                     min: "0",
                                                     name: `budgetRows[${index}][limit]`,
+                                                    onChange: (event)=>handleBudgetLimitChange(index, event.target.value),
                                                     placeholder: "0",
                                                     step: "0.01",
-                                                    type: "number"
+                                                    type: "number",
+                                                    value: row.limit
                                                 })
                                             }),
                                             /*#__PURE__*/ _jsx("button", {
