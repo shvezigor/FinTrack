@@ -360,7 +360,7 @@ export function DashboardShell() {
     const accounts = (isSnapshotLoaded ? snapshot.accounts : []).filter((account)=>account.isActive !== false);
     const monthExpense = isSnapshotLoaded ? snapshot.overview.monthExpenseTotal : sum(expenses.map((item)=>item.amount));
     const monthIncome = isSnapshotLoaded ? snapshot.overview.monthActualIncomeTotal ?? snapshot.overview.monthIncomeTotal : sum(incomes.filter((item)=>isActualIncomeStatus(item.status)).map((item)=>item.amount));
-    const monthPlannedIncome = isSnapshotLoaded ? snapshot.overview.monthPlannedIncomeTotal ?? 0 : sum(incomes.filter((item)=>!isActualIncomeStatus(item.status)).map((item)=>item.amount));
+    const monthPlannedIncome = isSnapshotLoaded ? snapshot.overview.monthPlannedIncomeTotal ?? 0 : sum(incomes.filter((item)=>isForecastIncomeStatus(item.status)).map((item)=>item.amount));
     const unreadNotificationCount = snapshot.overview.unreadNotificationCount ?? snapshot.notifications.filter((item)=>!item.isRead).length;
     const savings = isSnapshotLoaded ? snapshot.overview.savings : Math.max(monthIncome - monthExpense, 0);
     const currentUser = snapshot.profile?.name ?? (lang === "en" ? "Alex" : "Олександр");
@@ -2609,7 +2609,7 @@ function IncomePage({ accounts, incomes, loading, onDeleteIncome, onOpenModal })
     const remainingRows = Math.max(rows.length - visibleRows, 0);
     const periodIncome = sum(filteredIncomes.map((income)=>income.amount));
     const actualFilteredIncomes = filteredIncomes.filter((income)=>isActualIncomeStatus(income.status));
-    const plannedFilteredIncomes = filteredIncomes.filter((income)=>!isActualIncomeStatus(income.status));
+    const plannedFilteredIncomes = filteredIncomes.filter((income)=>isForecastIncomeStatus(income.status));
     const actualPeriodIncome = sum(actualFilteredIncomes.map((income)=>income.amount));
     const plannedPeriodIncome = sum(plannedFilteredIncomes.map((income)=>income.amount));
     const sources = groupIncomesBySource(filteredIncomes);
@@ -12203,6 +12203,9 @@ function getIncomeStatusValue(status) {
 function isActualIncomeStatus(status) {
     const value = getIncomeStatusValue(status);
     return value === "COMPLETED" || value === "RECEIVED";
+}
+function isForecastIncomeStatus(status) {
+    return getIncomeStatusValue(status) === "PLANNED";
 }
 function formatIncomeStatus(status) {
     const value = getIncomeStatusValue(status);
