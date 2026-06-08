@@ -228,7 +228,8 @@ app.post("/api/auth/password-reset", async (request, reply) => {
 });
 
 app.get("/api/auth/password-reset/verify", async (request, reply) => {
-  const token = request.query.token as string | undefined;
+  const query = request.query as { token?: string };
+  const token = query.token;
   if (!token) {
     return reply.status(400).send({ error: "token is required" });
   }
@@ -1020,6 +1021,9 @@ app.post("/api/ai/settings", async (request, reply) => {
       provider: body.provider ?? "OPENAI",
       userId,
     });
+    if (!settings) {
+      return reply.status(400).send({ error: "AI settings update failed" });
+    }
     await logRequestAction(request, {
       action: "ai.settings.updated",
       entityType: "integrationConnection",

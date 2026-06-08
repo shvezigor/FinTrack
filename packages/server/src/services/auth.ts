@@ -305,7 +305,7 @@ export async function requestPasswordReset(email: string) {
 
   // Send reset email
   const resetUrl = `${config.DASHBOARD_PUBLIC_URL}/reset-password?token=${token}`;
-  const emailContent = formatPasswordResetEmail(resetUrl, user.name || user.email.split("@")[0]);
+  const emailContent = formatPasswordResetEmail(resetUrl, user.name || (user.email.split("@")[0] ?? user.email));
 
   await sendEmail({
     to: user.email,

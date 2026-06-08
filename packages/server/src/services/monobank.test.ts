@@ -167,6 +167,52 @@ test("re-sync does not overwrite an existing bank expense edited by the user", a
   assert.equal(afterSyncExpense.manualOverride, true);
 });
 
+test("re-sync is insert-only for an existing monobank expense transaction", async () => {
+  const item = {
+    amount: -1_111_00,
+    balance: 33_000_00,
+    counterName: "Insert Only Store",
+    currencyCode: 980,
+    description: "Original bank description",
+    hold: false,
+    id: `${testRunId}-expense-insert-only`,
+    time: Math.floor(new Date("2026-05-08T10:00:00+03:00").getTime() / 1000),
+  };
+
+  const firstSync = await upsertMonobankTransaction("mono-account-insert-only", item, testUserId, { suppressAlerts: true });
+  assert.equal(firstSync?.isNew, true);
+
+  const secondSync = await upsertMonobankTransaction(
+    "mono-account-insert-only",
+    {
+      ...item,
+      amount: -9_999_00,
+      description: "Changed by bank on second sync",
+    },
+    testUserId,
+    { suppressAlerts: true },
+  );
+
+  assert.equal(secondSync?.isNew, false);
+
+  const db = getDb();
+  const txCount = await db.monoTransaction.count({
+    where: { monoTransactionId: item.id, userId: testUserId },
+  });
+  assert.equal(txCount, 1);
+
+  const expense = await db.expense.findFirstOrThrow({
+    where: { monoTransactionId: firstSync?.tx.id, userId: testUserId },
+  });
+  assert.equal(Number(expense.amount), 1111);
+  assert.equal(expense.description, "Original bank description");
+
+  const expenseCount = await db.expense.count({
+    where: { monoTransactionId: firstSync?.tx.id, userId: testUserId },
+  });
+  assert.equal(expenseCount, 1);
+});
+
 test("manual override blocks alias-based AI categorization for bank expenses", async () => {
   const item = {
     amount: -777_00,
