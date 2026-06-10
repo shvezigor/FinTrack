@@ -210,7 +210,7 @@ export async function getFinanceWorkspaceData(userId?: string) {
     resolvedUserId ? getAiProviderSettings(resolvedUserId) : Promise.resolve(null),
     resolvedUserId
       ? getTelegramConnectionState(resolvedUserId)
-      : Promise.resolve({ botUrl: null, connected: false, username: null }),
+      : Promise.resolve({ botUrl: null, connectCommand: null, connected: false, username: null }),
     resolvedUserId ? listUserNotifications(resolvedUserId, 12) : Promise.resolve([]),
     resolvedUserId ? countUnreadNotifications(resolvedUserId) : Promise.resolve(0),
   ]);
@@ -245,6 +245,7 @@ export async function getFinanceWorkspaceData(userId?: string) {
       ai,
       integrations: integrations.map(serializeIntegration),
       secrets,
+      telegramConnectCommand: telegram.connectCommand,
       telegramBotUrl: telegram.botUrl,
       telegramBotUsername: telegram.username,
       telegramConnected: telegram.connected,

@@ -5092,6 +5092,7 @@ function SettingsPage({ accounts, categories, connections, isWorkspaceAdmin, onC
                             title: t("settings.tabs.telegram"),
                             children: /*#__PURE__*/ _jsx(TelegramConnectPanel, {
                                 botUrl: connections.telegramBotUrl ?? null,
+                                connectCommand: connections.telegramConnectCommand ?? null,
                                 connected: Boolean(connections.telegramConnected),
                                 isWorkspaceAdmin: isWorkspaceAdmin,
                                 onOpenAdmin: onOpenTelegramAdmin,
@@ -5741,7 +5742,7 @@ function GoogleSheetsConnectPanel({ connected, onRevoke, onSave, secrets }) {
         ]
     });
 }
-function TelegramConnectPanel({ botUrl, connected, isWorkspaceAdmin, onOpenAdmin, onRefreshConnection, username }) {
+function TelegramConnectPanel({ botUrl, connectCommand, connected, isWorkspaceAdmin, onOpenAdmin, onRefreshConnection, username }) {
     const { t } = useI18n();
     const refreshSoon = ()=>{
         for (const delayMs of [
@@ -5759,6 +5760,15 @@ function TelegramConnectPanel({ botUrl, connected, isWorkspaceAdmin, onOpenAdmin
         if (!connected) {
             refreshSoon();
         }
+    };
+    const copyConnectCommand = ()=>{
+        if (!connectCommand) return;
+        void navigator.clipboard?.writeText(connectCommand).then(()=>{
+            emitAppToast(t("telegram.commandCopied"), "success");
+            refreshSoon();
+        }).catch(()=>{
+            emitAppToast(t("telegram.commandCopyFailed"), "error");
+        });
     };
     return /*#__PURE__*/ _jsxs("div", {
         className: "telegram-connect-panel",
@@ -5778,7 +5788,7 @@ function TelegramConnectPanel({ botUrl, connected, isWorkspaceAdmin, onOpenAdmin
                         ]
                     }),
                     /*#__PURE__*/ _jsx("p", {
-                        children: connected ? "Бот уже привʼязаний до вашого акаунта. Через нього можна додавати витрати, дивитися звіти та запускати синхронізацію." : username ? `Натисніть кнопку нижче, відкрийте @${username} у Telegram і підтвердьте старт.` : "Власник ще не налаштував спільного Telegram-бота для продукту."
+                        children: connected ? t("telegram.connectedNote") : username ? t("telegram.connectNote").replace("{username}", username) : t("telegram.notConfigured")
                     })
                 ]
             }),
@@ -5820,7 +5830,32 @@ function TelegramConnectPanel({ botUrl, connected, isWorkspaceAdmin, onOpenAdmin
                         ]
                     }) : null
                 ]
-            })
+            }),
+            connectCommand && !connected ? /*#__PURE__*/ _jsxs("div", {
+                className: "telegram-connect-fallback",
+                children: [
+                    /*#__PURE__*/ _jsx("strong", {
+                        children: t("telegram.fallbackTitle")
+                    }),
+                    /*#__PURE__*/ _jsx("small", {
+                        children: t("telegram.fallbackText")
+                    }),
+                    /*#__PURE__*/ _jsxs("div", {
+                        className: "telegram-command-row",
+                        children: [
+                            /*#__PURE__*/ _jsx("code", {
+                                children: connectCommand
+                            }),
+                            /*#__PURE__*/ _jsx("button", {
+                                className: "secondary-button",
+                                onClick: copyConnectCommand,
+                                type: "button",
+                                children: t("telegram.copyCommand")
+                            })
+                        ]
+                    })
+                ]
+            }) : null
         ]
     });
 }

@@ -3169,6 +3169,44 @@ body.is-resizing-table * {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
+.telegram-connect-fallback {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.telegram-connect-fallback strong {
+  color: #0f172a;
+}
+
+.telegram-connect-fallback small {
+  color: #475569;
+  line-height: 1.45;
+}
+
+.telegram-command-row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.telegram-command-row code {
+  background: #fff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  color: #0f172a;
+  display: block;
+  font-size: 12px;
+  overflow: hidden;
+  padding: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .status-dot {
   background: #cbd5e1;
   border-radius: 999px;
@@ -5697,6 +5735,10 @@ body.is-resizing-table * {
   }
 
   .telegram-connect-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .telegram-command-row {
     grid-template-columns: 1fr;
   }
 
