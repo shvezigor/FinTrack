@@ -2585,6 +2585,7 @@ body.is-resizing-table * {
 
 .form-grid input,
 .form-grid select,
+.form-grid textarea,
 .quick-modal input,
 .quick-modal select {
   background: #fbfcfe;
@@ -2592,6 +2593,14 @@ body.is-resizing-table * {
   border-radius: 8px;
   min-height: 42px;
   padding: 0 12px;
+}
+
+.form-grid textarea {
+  font: inherit;
+  line-height: 1.45;
+  min-height: 112px;
+  padding: 10px 12px;
+  resize: vertical;
 }
 
 .checkbox-field {

@@ -5125,12 +5125,15 @@ function SettingsPage({ accounts, categories, connections, isWorkspaceAdmin, onC
                                         connected: connections.googleSheets,
                                         icon: "google",
                                         id: "google-drive",
-                                        label: "Google Drive",
+                                        label: "Google Sheets",
                                         onToggle: ()=>setOpenIntegrationId((current)=>current === "google-drive" ? null : "google-drive"),
                                         open: openIntegrationId === "google-drive",
                                         text: t("integration.googleDriveDescription"),
-                                        children: /*#__PURE__*/ _jsx(GoogleDriveConnectPanel, {
-                                            connected: connections.googleSheets
+                                        children: /*#__PURE__*/ _jsx(GoogleSheetsConnectPanel, {
+                                            connected: connections.googleSheets,
+                                            onRevoke: onRevokeSecret,
+                                            onSave: onSaveSecret,
+                                            secrets: connections.secrets ?? []
                                         })
                                     })
                                 ]
@@ -5159,14 +5162,6 @@ function SettingsPage({ accounts, categories, connections, isWorkspaceAdmin, onC
                                 })
                             })
                         }),
-                        /*#__PURE__*/ _jsx(Panel, {
-                            title: t("settings.tabs.secrets"),
-                            children: /*#__PURE__*/ _jsx(SecretVaultPanel, {
-                                onRevoke: onRevokeSecret,
-                                onSave: onSaveSecret,
-                                secrets: connections.secrets ?? []
-                            })
-                        })
                     ]
                 }) : null
             ]
@@ -5620,8 +5615,39 @@ function IntegrationAccordionItem({ children, connected, icon, id, label, onTogg
         ]
     });
 }
-function GoogleDriveConnectPanel({ connected }) {
-    const { t } = useI18n();
+function GoogleSheetsConnectPanel({ connected, onRevoke, onSave, secrets }) {
+    const { lang, t } = useI18n();
+    const googleSecrets = secrets.filter((secret)=>secret.provider === "GOOGLE_SHEETS");
+    const hasCredentials = googleSecrets.some((secret)=>secret.keyName === "GOOGLE_SERVICE_ACCOUNT_JSON" && !secret.revokedAt);
+    const hasSpreadsheet = googleSecrets.some((secret)=>secret.keyName === "GOOGLE_SHEETS_SPREADSHEET_ID" && !secret.revokedAt);
+    function submit(event) {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        const credentials = String(data.get("credentials") ?? "").trim();
+        const spreadsheetId = String(data.get("spreadsheetId") ?? "").trim();
+        const saves = [];
+        if (credentials) {
+            saves.push(onSave({
+                keyName: "GOOGLE_SERVICE_ACCOUNT_JSON",
+                label: "Google service account JSON",
+                provider: "GOOGLE_SHEETS",
+                value: credentials
+            }));
+        }
+        if (spreadsheetId) {
+            saves.push(onSave({
+                keyName: "GOOGLE_SHEETS_SPREADSHEET_ID",
+                label: "Google Sheets spreadsheet ID",
+                provider: "GOOGLE_SHEETS",
+                value: spreadsheetId
+            }));
+        }
+        if (!saves.length) {
+            emitAppToast(t("integration.googleSheetsNeedValue"), "error");
+            return;
+        }
+        void Promise.all(saves).then(()=>event.currentTarget.reset());
+    }
     return /*#__PURE__*/ _jsxs("div", {
         className: "integration-info-panel",
         children: [
@@ -5639,7 +5665,79 @@ function GoogleDriveConnectPanel({ connected }) {
                         children: connected ? t("integration.googleDriveConnected") : t("integration.googleDriveNotConnected")
                     })
                 ]
-            })
+            }),
+            /*#__PURE__*/ _jsxs("form", {
+                className: "form-grid",
+                onInvalidCapture: (event)=>handleValidationCapture(event, lang),
+                onSubmit: submit,
+                children: [
+                    /*#__PURE__*/ _jsxs("label", {
+                        children: [
+                            t("integration.googleCredentials"),
+                            /*#__PURE__*/ _jsx("textarea", {
+                                name: "credentials",
+                                placeholder: t("integration.googleCredentialsPlaceholder"),
+                                rows: 4
+                            })
+                        ]
+                    }),
+                    /*#__PURE__*/ _jsxs("label", {
+                        children: [
+                            t("integration.googleSpreadsheetId"),
+                            /*#__PURE__*/ _jsx("input", {
+                                name: "spreadsheetId",
+                                placeholder: t("integration.googleSpreadsheetPlaceholder")
+                            })
+                        ]
+                    }),
+                    /*#__PURE__*/ _jsx("button", {
+                        className: "wide",
+                        type: "submit",
+                        children: t("integration.saveGoogleSheets")
+                    })
+                ]
+            }),
+            /*#__PURE__*/ _jsxs("div", {
+                className: "integration-info-meta",
+                children: [
+                    /*#__PURE__*/ _jsx("strong", {
+                        children: t("integration.googleSheetsSaved")
+                    }),
+                    /*#__PURE__*/ _jsx("small", {
+                        children: hasCredentials ? t("integration.googleCredentialsSaved") : t("integration.googleCredentialsMissing")
+                    }),
+                    /*#__PURE__*/ _jsx("small", {
+                        children: hasSpreadsheet ? t("integration.googleSpreadsheetSaved") : t("integration.googleSpreadsheetMissing")
+                    })
+                ]
+            }),
+            googleSecrets.length ? /*#__PURE__*/ _jsx("div", {
+                className: "secret-list",
+                children: googleSecrets.map((secret)=>/*#__PURE__*/ _jsxs("div", {
+                        className: "secret-row",
+                        children: [
+                            /*#__PURE__*/ _jsxs("div", {
+                                children: [
+                                    /*#__PURE__*/ _jsx("strong", {
+                                        children: secret.label || secret.keyName
+                                    }),
+                                    /*#__PURE__*/ _jsx("small", {
+                                        children: secret.keyName
+                                    }),
+                                    /*#__PURE__*/ _jsx("small", {
+                                        children: secret.revokedAt ? t("integration.secretRevoked") : secret.lastUsedAt ? `${t("integration.secretLastUsed")} ${formatDate(secret.lastUsedAt)}` : t("integration.secretNotUsed")
+                                    })
+                                ]
+                            }),
+                            /*#__PURE__*/ _jsx("button", {
+                                className: "ghost-button",
+                                onClick: ()=>void onRevoke(secret.provider, secret.keyName),
+                                type: "button",
+                                children: t("settings.revoke")
+                            })
+                        ]
+                    }, `${secret.provider}-${secret.keyName}`))
+            }) : null
         ]
     });
 }
