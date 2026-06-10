@@ -206,6 +206,7 @@ export async function backfillMonobankStatementRange(input: MonobankStatementRan
 
   let importedStatementItems = 0;
   const statementAccountIds: string[] = [];
+  const uncategorizedExpenseIds = new Set<string>();
 
   for (const account of accounts) {
     const response = await fetch(`${MONO_API_BASE}/personal/statement/${account.id}/${range.fromUnix}/${range.toUnix}`, {
@@ -222,6 +223,9 @@ export async function backfillMonobankStatementRange(input: MonobankStatementRan
       if (result?.isNew) {
         importedStatementItems += 1;
       }
+      if (result?.uncategorizedExpenseId) {
+        uncategorizedExpenseIds.add(result.uncategorizedExpenseId);
+      }
     }
     statementAccountIds.push(account.id);
   }
@@ -237,7 +241,11 @@ export async function backfillMonobankStatementRange(input: MonobankStatementRan
     statementTo: range.toDate.toISOString(),
     skippedDisabledAccounts: disabledAccountIds.size,
   });
-  await enqueueJob("classify_monobank_expenses", { source: input.source ?? "monobank_statement_range", userId: resolvedUserId });
+  await enqueueJob("classify_monobank_expenses", {
+    ...(uncategorizedExpenseIds.size ? { expenseIds: [...uncategorizedExpenseIds] } : {}),
+    source: input.source ?? "monobank_statement_range",
+    userId: resolvedUserId,
+  });
   await enqueueJob("match_expenses", { source: input.source ?? "monobank_statement_range", userId: resolvedUserId });
   return importedStatementItems;
 }
@@ -376,14 +384,21 @@ export async function upsertMonobankWebhookPayload(payload: unknown) {
     return null;
   }
   if (!result.isNew) {
+    if (result.uncategorizedExpenseId) {
+      await enqueueJob("classify_monobank_expenses", {
+        expenseIds: [result.uncategorizedExpenseId],
+        source: "monobank_webhook",
+        userId: result.tx.userId ?? null,
+      });
+    }
     return result.tx;
   }
-  const expense = await getDb().expense.findUnique({
-    select: { id: true },
-    where: { monoTransactionId: result.tx.id },
-  });
-  if (expense) {
-    await enqueueJob("classify_monobank_expenses", { expenseIds: [expense.id], source: "monobank_webhook", userId: result.tx.userId ?? null });
+  if (result.uncategorizedExpenseId) {
+    await enqueueJob("classify_monobank_expenses", {
+      expenseIds: [result.uncategorizedExpenseId],
+      source: "monobank_webhook",
+      userId: result.tx.userId ?? null,
+    });
   }
   await enqueueJob("match_expenses", { monoTransactionId: result.tx.id, userId: result.tx.userId ?? null });
   return result.tx;
@@ -401,7 +416,8 @@ export async function upsertMonobankTransaction(
   });
 
   if (existingTx) {
-    return { isNew: false, tx: existingTx } as const;
+    const uncategorizedExpenseId = await findUncategorizedMonobankExpenseId(existingTx.id, userId ?? existingTx.userId);
+    return { isNew: false, tx: existingTx, uncategorizedExpenseId } as const;
   }
 
   const resolvedUserId = await resolveMonobankUserId(userId ?? (await findUserIdByMonoAccount(accountId)));
@@ -435,6 +451,8 @@ export async function upsertMonobankTransaction(
     },
   });
 
+  let uncategorizedExpenseId: string | null = null;
+
   if (item.amount < 0) {
     const existingExpense = await db.expense.findUnique({
       select: { id: true },
@@ -454,6 +472,7 @@ export async function upsertMonobankTransaction(
           userId: resolvedUserId,
         },
       });
+      uncategorizedExpenseId = expense.id;
       if (!options.suppressAlerts) {
         await maybeCreateExpenseAlert(expense.id, resolvedUserId);
       }
@@ -486,7 +505,20 @@ export async function upsertMonobankTransaction(
     }
   }
 
-  return { isNew: true, tx } as const;
+  return { isNew: true, tx, uncategorizedExpenseId } as const;
+}
+
+async function findUncategorizedMonobankExpenseId(monoTransactionId: string, userId?: string | null) {
+  const expense = await getDb().expense.findFirst({
+    select: { id: true },
+    where: {
+      categoryId: null,
+      manualOverride: false,
+      monoTransactionId,
+      ...(userId ? { userId } : {}),
+    },
+  });
+  return expense?.id ?? null;
 }
 
 async function fetchMonobankClientInfoWithToken(token: string): Promise<MonoClientInfo> {

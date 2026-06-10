@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { Prisma } from "@prisma/client";
+import { normalizeAlias } from "@resource-manager/shared";
 import { getDb } from "../db.js";
 import { applyAliasCategories } from "./ai-categorization.js";
 import { upsertMonobankTransaction } from "./monobank.js";
@@ -211,6 +212,59 @@ test("re-sync is insert-only for an existing monobank expense transaction", asyn
     where: { monoTransactionId: firstSync?.tx.id, userId: testUserId },
   });
   assert.equal(expenseCount, 1);
+});
+
+test("re-sync surfaces existing uncategorized monobank expense for categorization", async () => {
+  const db = getDb();
+  const category = await db.category.create({
+    data: {
+      color: "#0ea5e9",
+      dashboardGroup: "Food",
+      icon: "cart",
+      name: "Existing Cafe",
+      slug: `${testRunId}-existing-cafe`,
+      userId: testUserId,
+      aliases: {
+        create: [{ alias: "Existing Cafe Merchant", normalizedAlias: normalizeAlias("Existing Cafe Merchant") }],
+      },
+    },
+  });
+  const item = {
+    amount: -555_00,
+    balance: 20_000_00,
+    counterName: "Existing Cafe Merchant",
+    currencyCode: 980,
+    description: "Existing Cafe Merchant",
+    hold: false,
+    id: `${testRunId}-expense-existing-uncategorized`,
+    time: Math.floor(new Date("2026-05-09T10:00:00+03:00").getTime() / 1000),
+  };
+
+  const firstSync = await upsertMonobankTransaction("mono-account-existing-uncategorized", item, testUserId, { suppressAlerts: true });
+  assert.equal(firstSync?.isNew, true);
+
+  const createdExpense = await db.expense.findFirstOrThrow({
+    where: { monoTransactionId: firstSync?.tx.id, userId: testUserId },
+  });
+  assert.equal(createdExpense.categoryId, null);
+
+  const secondSync = await upsertMonobankTransaction("mono-account-existing-uncategorized", item, testUserId, { suppressAlerts: true });
+  assert.equal(secondSync?.isNew, false);
+  assert.equal(secondSync?.uncategorizedExpenseId, createdExpense.id);
+  assert.ok(secondSync?.uncategorizedExpenseId);
+
+  const matchedCount = await applyAliasCategories({
+    expenseIds: [secondSync.uncategorizedExpenseId],
+    userId: testUserId,
+  });
+
+  assert.equal(matchedCount, 1);
+  const afterCategorization = await db.expense.findUniqueOrThrow({
+    where: { id: createdExpense.id },
+  });
+  assert.equal(afterCategorization.categoryId, category.id);
+  assert.equal(Number(afterCategorization.amount), 555);
+  assert.equal(afterCategorization.description, "Existing Cafe Merchant");
 });
 
 test("manual override blocks alias-based AI categorization for bank expenses", async () => {
