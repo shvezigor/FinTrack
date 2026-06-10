@@ -19,9 +19,11 @@ export async function getTelegramConnectionState(userId?: string | null) {
     getTelegramBotUsername(),
     userId ? getDb().telegramAccount.count({ where: { telegramChatId: { not: null }, userId } }) : Promise.resolve(0),
   ]);
+  const startParam = userId ? createTelegramConnectStartParam(userId) : null;
 
   return {
-    botUrl: userId && username ? `https://t.me/${username}?start=${createTelegramConnectStartParam(userId)}` : null,
+    botUrl: startParam && username ? `https://t.me/${username}?start=${startParam}` : null,
+    connectCommand: startParam ? `/start ${startParam}` : null,
     connected: linkedCount > 0,
     username,
   };

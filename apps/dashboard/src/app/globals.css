@@ -2585,6 +2585,7 @@ body.is-resizing-table * {
 
 .form-grid input,
 .form-grid select,
+.form-grid textarea,
 .quick-modal input,
 .quick-modal select {
   background: #fbfcfe;
@@ -2592,6 +2593,14 @@ body.is-resizing-table * {
   border-radius: 8px;
   min-height: 42px;
   padding: 0 12px;
+}
+
+.form-grid textarea {
+  font: inherit;
+  line-height: 1.45;
+  min-height: 112px;
+  padding: 10px 12px;
+  resize: vertical;
 }
 
 .checkbox-field {
@@ -3158,6 +3167,44 @@ body.is-resizing-table * {
 
 .telegram-connect-actions {
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.telegram-connect-fallback {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.telegram-connect-fallback strong {
+  color: #0f172a;
+}
+
+.telegram-connect-fallback small {
+  color: #475569;
+  line-height: 1.45;
+}
+
+.telegram-command-row {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.telegram-command-row code {
+  background: #fff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  color: #0f172a;
+  display: block;
+  font-size: 12px;
+  overflow: hidden;
+  padding: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .status-dot {
@@ -5688,6 +5735,10 @@ body.is-resizing-table * {
   }
 
   .telegram-connect-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .telegram-command-row {
     grid-template-columns: 1fr;
   }
 

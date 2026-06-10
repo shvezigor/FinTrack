@@ -5092,6 +5092,7 @@ function SettingsPage({ accounts, categories, connections, isWorkspaceAdmin, onC
                             title: t("settings.tabs.telegram"),
                             children: /*#__PURE__*/ _jsx(TelegramConnectPanel, {
                                 botUrl: connections.telegramBotUrl ?? null,
+                                connectCommand: connections.telegramConnectCommand ?? null,
                                 connected: Boolean(connections.telegramConnected),
                                 isWorkspaceAdmin: isWorkspaceAdmin,
                                 onOpenAdmin: onOpenTelegramAdmin,
@@ -5125,12 +5126,15 @@ function SettingsPage({ accounts, categories, connections, isWorkspaceAdmin, onC
                                         connected: connections.googleSheets,
                                         icon: "google",
                                         id: "google-drive",
-                                        label: "Google Drive",
+                                        label: "Google Sheets",
                                         onToggle: ()=>setOpenIntegrationId((current)=>current === "google-drive" ? null : "google-drive"),
                                         open: openIntegrationId === "google-drive",
                                         text: t("integration.googleDriveDescription"),
-                                        children: /*#__PURE__*/ _jsx(GoogleDriveConnectPanel, {
-                                            connected: connections.googleSheets
+                                        children: /*#__PURE__*/ _jsx(GoogleSheetsConnectPanel, {
+                                            connected: connections.googleSheets,
+                                            onRevoke: onRevokeSecret,
+                                            onSave: onSaveSecret,
+                                            secrets: connections.secrets ?? []
                                         })
                                     })
                                 ]
@@ -5159,14 +5163,6 @@ function SettingsPage({ accounts, categories, connections, isWorkspaceAdmin, onC
                                 })
                             })
                         }),
-                        /*#__PURE__*/ _jsx(Panel, {
-                            title: t("settings.tabs.secrets"),
-                            children: /*#__PURE__*/ _jsx(SecretVaultPanel, {
-                                onRevoke: onRevokeSecret,
-                                onSave: onSaveSecret,
-                                secrets: connections.secrets ?? []
-                            })
-                        })
                     ]
                 }) : null
             ]
@@ -5620,8 +5616,39 @@ function IntegrationAccordionItem({ children, connected, icon, id, label, onTogg
         ]
     });
 }
-function GoogleDriveConnectPanel({ connected }) {
-    const { t } = useI18n();
+function GoogleSheetsConnectPanel({ connected, onRevoke, onSave, secrets }) {
+    const { lang, t } = useI18n();
+    const googleSecrets = secrets.filter((secret)=>secret.provider === "GOOGLE_SHEETS");
+    const hasCredentials = googleSecrets.some((secret)=>secret.keyName === "GOOGLE_SERVICE_ACCOUNT_JSON" && !secret.revokedAt);
+    const hasSpreadsheet = googleSecrets.some((secret)=>secret.keyName === "GOOGLE_SHEETS_SPREADSHEET_ID" && !secret.revokedAt);
+    function submit(event) {
+        event.preventDefault();
+        const data = new FormData(event.currentTarget);
+        const credentials = String(data.get("credentials") ?? "").trim();
+        const spreadsheetId = String(data.get("spreadsheetId") ?? "").trim();
+        const saves = [];
+        if (credentials) {
+            saves.push(onSave({
+                keyName: "GOOGLE_SERVICE_ACCOUNT_JSON",
+                label: "Google service account JSON",
+                provider: "GOOGLE_SHEETS",
+                value: credentials
+            }));
+        }
+        if (spreadsheetId) {
+            saves.push(onSave({
+                keyName: "GOOGLE_SHEETS_SPREADSHEET_ID",
+                label: "Google Sheets spreadsheet ID",
+                provider: "GOOGLE_SHEETS",
+                value: spreadsheetId
+            }));
+        }
+        if (!saves.length) {
+            emitAppToast(t("integration.googleSheetsNeedValue"), "error");
+            return;
+        }
+        void Promise.all(saves).then(()=>event.currentTarget.reset());
+    }
     return /*#__PURE__*/ _jsxs("div", {
         className: "integration-info-panel",
         children: [
@@ -5639,11 +5666,83 @@ function GoogleDriveConnectPanel({ connected }) {
                         children: connected ? t("integration.googleDriveConnected") : t("integration.googleDriveNotConnected")
                     })
                 ]
-            })
+            }),
+            /*#__PURE__*/ _jsxs("form", {
+                className: "form-grid",
+                onInvalidCapture: (event)=>handleValidationCapture(event, lang),
+                onSubmit: submit,
+                children: [
+                    /*#__PURE__*/ _jsxs("label", {
+                        children: [
+                            t("integration.googleCredentials"),
+                            /*#__PURE__*/ _jsx("textarea", {
+                                name: "credentials",
+                                placeholder: t("integration.googleCredentialsPlaceholder"),
+                                rows: 4
+                            })
+                        ]
+                    }),
+                    /*#__PURE__*/ _jsxs("label", {
+                        children: [
+                            t("integration.googleSpreadsheetId"),
+                            /*#__PURE__*/ _jsx("input", {
+                                name: "spreadsheetId",
+                                placeholder: t("integration.googleSpreadsheetPlaceholder")
+                            })
+                        ]
+                    }),
+                    /*#__PURE__*/ _jsx("button", {
+                        className: "wide",
+                        type: "submit",
+                        children: t("integration.saveGoogleSheets")
+                    })
+                ]
+            }),
+            /*#__PURE__*/ _jsxs("div", {
+                className: "integration-info-meta",
+                children: [
+                    /*#__PURE__*/ _jsx("strong", {
+                        children: t("integration.googleSheetsSaved")
+                    }),
+                    /*#__PURE__*/ _jsx("small", {
+                        children: hasCredentials ? t("integration.googleCredentialsSaved") : t("integration.googleCredentialsMissing")
+                    }),
+                    /*#__PURE__*/ _jsx("small", {
+                        children: hasSpreadsheet ? t("integration.googleSpreadsheetSaved") : t("integration.googleSpreadsheetMissing")
+                    })
+                ]
+            }),
+            googleSecrets.length ? /*#__PURE__*/ _jsx("div", {
+                className: "secret-list",
+                children: googleSecrets.map((secret)=>/*#__PURE__*/ _jsxs("div", {
+                        className: "secret-row",
+                        children: [
+                            /*#__PURE__*/ _jsxs("div", {
+                                children: [
+                                    /*#__PURE__*/ _jsx("strong", {
+                                        children: secret.label || secret.keyName
+                                    }),
+                                    /*#__PURE__*/ _jsx("small", {
+                                        children: secret.keyName
+                                    }),
+                                    /*#__PURE__*/ _jsx("small", {
+                                        children: secret.revokedAt ? t("integration.secretRevoked") : secret.lastUsedAt ? `${t("integration.secretLastUsed")} ${formatDate(secret.lastUsedAt)}` : t("integration.secretNotUsed")
+                                    })
+                                ]
+                            }),
+                            /*#__PURE__*/ _jsx("button", {
+                                className: "ghost-button",
+                                onClick: ()=>void onRevoke(secret.provider, secret.keyName),
+                                type: "button",
+                                children: t("settings.revoke")
+                            })
+                        ]
+                    }, `${secret.provider}-${secret.keyName}`))
+            }) : null
         ]
     });
 }
-function TelegramConnectPanel({ botUrl, connected, isWorkspaceAdmin, onOpenAdmin, onRefreshConnection, username }) {
+function TelegramConnectPanel({ botUrl, connectCommand, connected, isWorkspaceAdmin, onOpenAdmin, onRefreshConnection, username }) {
     const { t } = useI18n();
     const refreshSoon = ()=>{
         for (const delayMs of [
@@ -5661,6 +5760,15 @@ function TelegramConnectPanel({ botUrl, connected, isWorkspaceAdmin, onOpenAdmin
         if (!connected) {
             refreshSoon();
         }
+    };
+    const copyConnectCommand = ()=>{
+        if (!connectCommand) return;
+        void navigator.clipboard?.writeText(connectCommand).then(()=>{
+            emitAppToast(t("telegram.commandCopied"), "success");
+            refreshSoon();
+        }).catch(()=>{
+            emitAppToast(t("telegram.commandCopyFailed"), "error");
+        });
     };
     return /*#__PURE__*/ _jsxs("div", {
         className: "telegram-connect-panel",
@@ -5680,7 +5788,7 @@ function TelegramConnectPanel({ botUrl, connected, isWorkspaceAdmin, onOpenAdmin
                         ]
                     }),
                     /*#__PURE__*/ _jsx("p", {
-                        children: connected ? "Бот уже привʼязаний до вашого акаунта. Через нього можна додавати витрати, дивитися звіти та запускати синхронізацію." : username ? `Натисніть кнопку нижче, відкрийте @${username} у Telegram і підтвердьте старт.` : "Власник ще не налаштував спільного Telegram-бота для продукту."
+                        children: connected ? t("telegram.connectedNote") : username ? t("telegram.connectNote").replace("{username}", username) : t("telegram.notConfigured")
                     })
                 ]
             }),
@@ -5722,7 +5830,32 @@ function TelegramConnectPanel({ botUrl, connected, isWorkspaceAdmin, onOpenAdmin
                         ]
                     }) : null
                 ]
-            })
+            }),
+            connectCommand && !connected ? /*#__PURE__*/ _jsxs("div", {
+                className: "telegram-connect-fallback",
+                children: [
+                    /*#__PURE__*/ _jsx("strong", {
+                        children: t("telegram.fallbackTitle")
+                    }),
+                    /*#__PURE__*/ _jsx("small", {
+                        children: t("telegram.fallbackText")
+                    }),
+                    /*#__PURE__*/ _jsxs("div", {
+                        className: "telegram-command-row",
+                        children: [
+                            /*#__PURE__*/ _jsx("code", {
+                                children: connectCommand
+                            }),
+                            /*#__PURE__*/ _jsx("button", {
+                                className: "secondary-button",
+                                onClick: copyConnectCommand,
+                                type: "button",
+                                children: t("telegram.copyCommand")
+                            })
+                        ]
+                    })
+                ]
+            }) : null
         ]
     });
 }
@@ -9407,8 +9540,6 @@ function QuickModal({ accounts, budgets = [], categories, generatingGoalImage, i
         setBudgetDraftRows([]);
     }, [
         budgetMonth,
-        budgets,
-        categories,
         editing,
         kind
     ]);
@@ -9461,6 +9592,12 @@ function QuickModal({ accounts, budgets = [], categories, generatingGoalImage, i
                     name: categoryName
                 };
             }));
+    }
+    function handleBudgetLimitChange(index, limit) {
+        setBudgetDraftRows((current)=>current.map((row, rowIndex)=>rowIndex === index ? {
+                    ...row,
+                    limit
+                } : row));
     }
     function handleGoalImageChange(event) {
         const file = event.target.files?.[0];
@@ -9879,12 +10016,13 @@ function QuickModal({ accounts, budgets = [], categories, generatingGoalImage, i
                                             /*#__PURE__*/ _jsx("label", {
                                                 className: "budget-batch-amount",
                                                 children: /*#__PURE__*/ _jsx("input", {
-                                                    defaultValue: row.limit,
                                                     min: "0",
                                                     name: `budgetRows[${index}][limit]`,
+                                                    onChange: (event)=>handleBudgetLimitChange(index, event.target.value),
                                                     placeholder: "0",
                                                     step: "0.01",
-                                                    type: "number"
+                                                    type: "number",
+                                                    value: row.limit
                                                 })
                                             }),
                                             /*#__PURE__*/ _jsx("button", {

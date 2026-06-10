@@ -136,20 +136,35 @@ export async function createFinanceBot(): Promise<FinanceBot | null> {
       return;
     }
 
-    if (allowedAdmins.size === 0 && ctx.message?.text?.startsWith("/claim ")) {
-      const secret = ctx.message.text.replace(/^\/claim\s+/, "").trim();
-      if (config.ADMIN_CLAIM_SECRET && secret === config.ADMIN_CLAIM_SECRET) {
+    const claimText = ctx.message?.text?.trim();
+    if (claimText?.startsWith("/claim")) {
+      const secret = claimText.replace(/^\/claim(?:@\w+)?\s*/u, "").trim();
+      if (allowedAdmins.size === 0 && config.ADMIN_CLAIM_SECRET && secret === config.ADMIN_CLAIM_SECRET) {
         await setPlainSetting("ADMIN_TELEGRAM_USER_IDS", telegramUserId);
         await replyHtml(ctx, notice("Admin-доступ прив'язано", "Тепер можна відкрити /start."));
         return;
       }
-    }
 
-    if (allowedAdmins.size === 0) {
-      await replyHtml(ctx, `<b>Admin ще не налаштований</b>\n\nВкажіть <code>ADMIN_TELEGRAM_USER_IDS</code> або надішліть <code>/claim &lt;ADMIN_CLAIM_SECRET&gt;</code>.`);
+      await replyHtml(
+        ctx,
+        notice(
+          "Потрібне підключення",
+          "Щоб прив'язати Telegram до свого акаунта, відкрийте бота кнопкою «Додати бота» у вебкабінеті FinTrack.",
+        ),
+      );
       return;
     }
 
+    if (allowedAdmins.size === 0) {
+      await replyHtml(
+        ctx,
+        notice(
+          "Потрібне підключення",
+          "Відкрийте бота кнопкою «Додати бота» у вебкабінеті FinTrack. Звичайним користувачам admin-claim не потрібен.",
+        ),
+      );
+      return;
+    }
     await replyHtml(ctx, notice("Потрібне підключення", "Спершу відкрийте бота з кабінету FinTrack, щоб прив'язати Telegram до свого акаунта."));
   });
 
@@ -1084,9 +1099,10 @@ function formatMoney(value: number) {
 }
 
 function extractStartParam(text?: string) {
-  if (!text?.startsWith("/start")) {
+  const normalized = text?.trim();
+  if (!normalized?.startsWith("/start")) {
     return null;
   }
-  const [, ...rest] = text.trim().split(/\s+/);
+  const [, ...rest] = normalized.split(/\s+/);
   return rest.join(" ").trim() || null;
 }

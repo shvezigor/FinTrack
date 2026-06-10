@@ -176,6 +176,7 @@ export type Snapshot = {
     integrations?: Array<{ id: string; label: string; provider: string; status: string }>;
     monobank: boolean;
     openai: boolean;
+    telegramConnectCommand?: string | null;
     telegramBotUrl?: string | null;
     telegramBotUsername?: string | null;
     telegramConnected?: boolean;
@@ -571,6 +572,7 @@ export const emptySnapshot: Snapshot = {
     monobank: false,
     openai: false,
     telegramBotUrl: null,
+    telegramConnectCommand: null,
     telegramBotUsername: null,
     telegramConnected: false,
   },
