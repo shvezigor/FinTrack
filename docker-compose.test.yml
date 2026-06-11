@@ -1,0 +1,19 @@
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: resource_manager_test
+      POSTGRES_PASSWORD: resource_manager
+      POSTGRES_USER: resource_manager
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U resource_manager -d resource_manager_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    ports:
+      - "55432:5432"
+    volumes:
+      - postgres-test-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-test-data:
