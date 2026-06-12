@@ -116,12 +116,19 @@ export type CategoryInput = {
 };
 
 const categoryIconNames = new Set([
+  "analytics",
+  "bank",
+  "bell",
   "book",
+  "briefcase",
+  "calendar",
   "car",
   "cart",
+  "chart",
   "expenses",
   "fuel",
   "gift",
+  "goals",
   "heart",
   "home",
   "income",
@@ -130,11 +137,16 @@ const categoryIconNames = new Set([
   "openai",
   "pet",
   "phone",
+  "piggy",
   "plane",
   "receipt",
+  "shield",
   "shirt",
   "smile",
+  "spark",
   "subscriptions",
+  "transactions",
+  "user",
   "wallet",
 ]);
 
@@ -1129,12 +1141,19 @@ function inferCategoryIcon(category: string | null) {
 function categoryColorForIcon(icon?: string | null) {
   const normalized = normalizeCategoryIcon(icon);
   const colors: Record<string, string> = {
+    analytics: "#0f766e",
+    bank: "#1d4ed8",
+    bell: "#2563eb",
     book: "#7c3aed",
+    briefcase: "#7c3aed",
+    calendar: "#475569",
     car: "#06b6d4",
     cart: "#22c55e",
+    chart: "#16a34a",
     expenses: "#64748b",
     fuel: "#64748b",
     gift: "#f97316",
+    goals: "#7c3aed",
     heart: "#ec4899",
     home: "#3b82f6",
     income: "#22c55e",
@@ -1143,11 +1162,16 @@ function categoryColorForIcon(icon?: string | null) {
     openai: "#0ea5e9",
     pet: "#a855f7",
     phone: "#84cc16",
+    piggy: "#f43f5e",
     plane: "#2563eb",
     receipt: "#64748b",
+    shield: "#0284c7",
     shirt: "#14b8a6",
     smile: "#8b5cf6",
+    spark: "#8b5cf6",
     subscriptions: "#f59e0b",
+    transactions: "#64748b",
+    user: "#64748b",
     wallet: "#22c55e",
   };
   return colors[normalized] ?? "#22c55e";
