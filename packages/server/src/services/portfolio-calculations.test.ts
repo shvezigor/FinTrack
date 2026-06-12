@@ -3,6 +3,8 @@ import { describe, test } from "node:test";
 import { Prisma } from "@prisma/client";
 import {
   calculateActualIncomeTotal,
+  calculateBudgetLimitTotal,
+  calculateBudgetSavings,
   calculateBudgetUsage,
   calculateGoalProgress,
   calculatePlannedIncomeTotal,
@@ -48,6 +50,18 @@ describe("portfolio calculations", () => {
       remaining: 600.5,
       spent: 399.5,
     });
+  });
+
+  test("calculates projected expenses from budget limits and budget savings", () => {
+    const budgets = [
+      { limit: new Prisma.Decimal(12000) },
+      { limit: new Prisma.Decimal(3000) },
+      { limit: 500 },
+    ];
+
+    assert.equal(calculateBudgetLimitTotal(budgets), 15500);
+    assert.equal(calculateBudgetSavings(new Prisma.Decimal(15500), new Prisma.Decimal(6200)), 9300);
+    assert.equal(calculateBudgetSavings(5000, 6200), -1200);
   });
 
   test("calculates goal progress with empty target protection", () => {

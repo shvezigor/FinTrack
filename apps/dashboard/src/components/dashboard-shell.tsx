@@ -18,8 +18,9 @@ const indicatorTooltips = {
         dashboard: {
             actualIncome: "Shows completed income received in the current month. Planned or pending income is excluded.",
             plannedIncome: "Shows income planned for the current month that has not been confirmed as received yet.",
+            plannedExpenses: "Shows the total expense plan for the current month based on budget limits.",
             expenses: "Shows all expense transactions recorded in the current month after the active filters are applied.",
-            savings: "Shows the remaining amount after subtracting monthly expenses from actual monthly income."
+            savings: "Shows the difference between projected expenses from budgets and actual monthly expenses."
         },
         income: {
             totalPeriod: "Shows the total actual income for the selected period after account, status, and source filters are applied.",
@@ -86,8 +87,9 @@ const indicatorTooltips = {
         dashboard: {
             actualIncome: "Показує лише фактичні доходи, які реально надійшли в поточному місяці. Прогнозовані та очікувані доходи сюди не входять.",
             plannedIncome: "Показує доходи, які заплановані на поточний місяць, але ще не підтверджені як отримані.",
+            plannedExpenses: "Показує прогнозовані витрати на поточний місяць на основі лімітів у бюджетах.",
             expenses: "Показує всі витрати за поточний місяць з урахуванням активних фільтрів.",
-            savings: "Показує залишок після віднімання місячних витрат від фактичного доходу за місяць."
+            savings: "Показує різницю між прогнозованими витратами з бюджетів і фактичними витратами за місяць."
         },
         income: {
             totalPeriod: "Показує суму всіх фактичних доходів за вибраний період з урахуванням фільтрів за джерелом, рахунком і статусом.",
@@ -361,8 +363,9 @@ export function DashboardShell() {
     const monthExpense = isSnapshotLoaded ? snapshot.overview.monthExpenseTotal : sum(expenses.map((item)=>item.amount));
     const monthIncome = isSnapshotLoaded ? snapshot.overview.monthActualIncomeTotal ?? snapshot.overview.monthIncomeTotal : sum(incomes.filter((item)=>isActualIncomeStatus(item.status)).map((item)=>item.amount));
     const monthPlannedIncome = isSnapshotLoaded ? snapshot.overview.monthPlannedIncomeTotal ?? 0 : sum(incomes.filter((item)=>isForecastIncomeStatus(item.status)).map((item)=>item.amount));
+    const monthPlannedExpense = isSnapshotLoaded ? snapshot.overview.monthBudgetTotal ?? 0 : sum(budgets.map((item)=>item.limit));
     const unreadNotificationCount = snapshot.overview.unreadNotificationCount ?? snapshot.notifications.filter((item)=>!item.isRead).length;
-    const savings = isSnapshotLoaded ? snapshot.overview.savings : Math.max(monthIncome - monthExpense, 0);
+    const savings = isSnapshotLoaded ? snapshot.overview.savings : monthPlannedExpense - monthExpense;
     const currentUser = snapshot.profile?.name ?? (lang === "en" ? "Alex" : "Олександр");
     const isWorkspaceAdmin = [
         "ADMIN",
@@ -2010,6 +2013,7 @@ export function DashboardShell() {
                                 monthExpense: monthExpense,
                                 monthIncome: monthIncome,
                                 monthPlannedIncome: monthPlannedIncome,
+                                monthPlannedExpense: monthPlannedExpense,
                                 onAction: queueAction,
                                 onAskChange: setQuestion,
                                 onNavigate: openPage,
@@ -2219,7 +2223,7 @@ export function DashboardShell() {
         ]
     });
 }
-function DashboardPage({ answer, askAi, budgets, byCategory, categories, expenses, hasRealBudgets, incomes, loading, monthExpense, monthIncome, monthPlannedIncome, onAction, onAskChange, onNavigate, onOpenModal, prevMonthExpense, question, savings }) {
+function DashboardPage({ answer, askAi, budgets, byCategory, categories, expenses, hasRealBudgets, incomes, loading, monthExpense, monthIncome, monthPlannedIncome, monthPlannedExpense, onAction, onAskChange, onNavigate, onOpenModal, prevMonthExpense, question, savings }) {
     const { t } = useI18n();
     const tips = useIndicatorTooltips();
     const [trendPeriodMonths, setTrendPeriodMonths] = useState(6);
@@ -2277,7 +2281,7 @@ function DashboardPage({ answer, askAi, budgets, byCategory, categories, expense
     const insightCategoryText = topCategory
         ? `${topCategory.name} — ${formatMoney(topCategory.total)}, найбільша частка витрат цього місяця.`
         : t("expense.trend.addExpenses");
-    const savingsRate = monthIncome > 0 ? Math.round(savings / monthIncome * 100) : 0;
+    const savingsRate = monthPlannedExpense > 0 ? Math.round(savings / monthPlannedExpense * 100) : 0;
     const expenseTrendText = expenseChangePercent === null ? t("expense.trend.current") : expenseChangePercent === 0 ? t("expense.trend.noChange") : `${expenseChangePercent > 0 ? "+" : ""}${expenseChangePercent}% до минулого місяця`;
     return /*#__PURE__*/ _jsxs(_Fragment, {
         children: [
@@ -2325,7 +2329,7 @@ function DashboardPage({ answer, askAi, budgets, byCategory, categories, expense
                 ]
             }),
             /*#__PURE__*/ _jsxs("section", {
-                className: "metric-grid",
+                className: "metric-grid five",
                 children: [
                     /*#__PURE__*/ _jsx(MetricCard, {
                         accent: "green",
@@ -2352,11 +2356,19 @@ function DashboardPage({ answer, askAi, budgets, byCategory, categories, expense
                         value: monthExpense
                     }),
                     /*#__PURE__*/ _jsx(MetricCard, {
+                        accent: "violet",
+                        icon: "receipt",
+                        label: t("dashboard.metrics.plannedExpenses"),
+                        tooltip: tips.dashboard.plannedExpenses,
+                        trend: monthPlannedExpense > 0 ? t("dashboard.metrics.plannedExpenseLimit") : t("dashboard.metrics.noPlannedExpenses"),
+                        value: monthPlannedExpense
+                    }),
+                    /*#__PURE__*/ _jsx(MetricCard, {
                         accent: "lime",
                         icon: "piggy",
                         label: t("dashboard.metrics.savings"),
                         tooltip: tips.dashboard.savings,
-                        trend: monthIncome > 0 ? `${savingsRate}% ${t("dashboard.metrics.ofActualIncome")}` : t("dashboard.metrics.noIncomeYet"),
+                        trend: monthPlannedExpense > 0 ? `${savingsRate}% ${t("dashboard.metrics.ofPlannedExpenses")}` : t("dashboard.metrics.noPlannedExpenses"),
                         value: savings
                     })
                 ]
