@@ -18,7 +18,7 @@
     "format": "prettier --write .",
     "test": "npm run test:unit",
     "test:all": "npm run test:db:up && npm run test:ci",
-    "test:ci": "npm run typecheck && npm run test:unit && npm run build && npm run test:e2e",
+    "test:ci": "npm run db:generate && npm run typecheck && npm run test:unit && npm run build && npm run test:e2e",
     "test:db:down": "docker compose -f docker-compose.test.yml down -v",
     "test:db:up": "docker compose -f docker-compose.test.yml up -d postgres-test",
     "test:e2e": "playwright test",
