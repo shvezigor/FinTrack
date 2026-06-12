@@ -206,6 +206,7 @@ export type Snapshot = {
     liabilityMinimumTotal: number;
     liabilityTotal: number;
     monthActualIncomeTotal: number;
+    monthBudgetTotal?: number;
     monthExpenseTotal: number;
     monthIncomeTotal: number;
     monthPlannedIncomeTotal?: number;
@@ -591,6 +592,7 @@ export const emptySnapshot: Snapshot = {
     liabilityMinimumTotal: 0,
     liabilityTotal: 0,
     monthActualIncomeTotal: 0,
+    monthBudgetTotal: 0,
     monthExpenseTotal: 0,
     monthIncomeTotal: 0,
     monthPlannedIncomeTotal: 0,

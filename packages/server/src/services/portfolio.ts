@@ -10,6 +10,8 @@ import { getTelegramConnectionState } from "./telegram-link.js";
 import { listUserSecrets } from "./user-secrets.js";
 import {
   calculateActualIncomeTotal,
+  calculateBudgetLimitTotal,
+  calculateBudgetSavings,
   calculateBudgetUsage,
   calculateGoalProgress,
   calculatePlannedIncomeTotal,
@@ -223,6 +225,7 @@ export async function getFinanceWorkspaceData(userId?: string) {
   const monthActualIncomeTotal = calculateActualIncomeTotal(monthIncomes);
   const monthPlannedIncomeTotal = calculatePlannedIncomeTotal(monthIncomes);
   const monthIncomeTotal = monthIncomes.reduce((sum, income) => sum + Number(income.amount), 0);
+  const monthBudgetTotal = calculateBudgetLimitTotal(budgets);
   const accountBalance = accounts.reduce((sum, account) => sum + Number(account.balance), 0);
   const byCategory = groupExpensesByCategory(monthExpenses);
   const categoryTotals = new Map(byCategory.map((category) => [category.name, category.total]));
@@ -264,12 +267,13 @@ export async function getFinanceWorkspaceData(userId?: string) {
       liabilityMinimumTotal,
       liabilityTotal,
       monthActualIncomeTotal,
+      monthBudgetTotal,
       monthExpenseTotal,
       monthIncomeTotal,
       monthPlannedIncomeTotal,
       needsReviewCount: expenses.filter((expense) => expense.sourceStatus === "NEEDS_REVIEW").length,
       prevMonthExpenseTotal,
-      savings: Math.max(monthActualIncomeTotal - monthExpenseTotal, 0),
+      savings: calculateBudgetSavings(monthBudgetTotal, monthExpenseTotal),
       unreadNotificationCount,
     },
     profile: owner

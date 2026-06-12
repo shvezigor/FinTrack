@@ -43,6 +43,14 @@ export function calculatePlannedIncomeTotal(incomes: Array<{ amount: AmountLike;
   return incomes.filter((income) => isPlannedIncomeStatus(income.status)).reduce((sum, income) => sum + toNumber(income.amount), 0);
 }
 
+export function calculateBudgetLimitTotal(budgets: Array<{ limit: AmountLike }>) {
+  return budgets.reduce((sum, budget) => sum + toNumber(budget.limit), 0);
+}
+
+export function calculateBudgetSavings(budgetTotal: AmountLike, expenseTotal: AmountLike) {
+  return toNumber(budgetTotal) - toNumber(expenseTotal);
+}
+
 export function calculateBudgetUsage(budget: BudgetCalculationInput, expenses: BudgetExpenseInput[]) {
   const spent = expenses
     .filter((expense) => expense.categoryId === budget.categoryId)
