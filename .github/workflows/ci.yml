@@ -27,6 +27,7 @@ jobs:
           --health-retries 20
     env:
       APP_BASE_URL: http://127.0.0.1:3101
+      APP_SECRET_KEY: fintrack-ci-test-secret-key
       DASHBOARD_ADMIN_PASSWORD: TestAdmin123!
       DASHBOARD_PUBLIC_URL: http://127.0.0.1:3100
       DATABASE_URL: postgresql://resource_manager:resource_manager@127.0.0.1:55432/resource_manager_test?schema=public

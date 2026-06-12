@@ -5,6 +5,7 @@ const testDatabaseUrl =
   "postgresql://resource_manager:resource_manager@127.0.0.1:55432/resource_manager_test?schema=public";
 
 process.env.APP_BASE_URL ??= "http://127.0.0.1:3101";
+process.env.APP_SECRET_KEY ??= "fintrack-ci-test-secret-key";
 process.env.DASHBOARD_PUBLIC_URL ??= "http://127.0.0.1:3100";
 process.env.DATABASE_URL = testDatabaseUrl;
 process.env.DEFAULT_USER_EMAIL ??= "admin@e2e.fintrack.test";
@@ -40,6 +41,7 @@ export default defineConfig({
       env: {
         ...process.env,
         APP_BASE_URL: "http://127.0.0.1:3101",
+        APP_SECRET_KEY: process.env.APP_SECRET_KEY,
         DASHBOARD_PUBLIC_URL: "http://127.0.0.1:3100",
         DATABASE_URL: testDatabaseUrl,
         PORT: "3101",
