@@ -1464,7 +1464,8 @@ function rangeFromQuery(queryValue: unknown) {
 process.on("SIGINT", () => void shutdown());
 process.on("SIGTERM", () => void shutdown());
 
-await app.listen({ host: "0.0.0.0", port: 3001 });
+const port = Number(process.env.PORT ?? 3001);
+await app.listen({ host: "0.0.0.0", port });
 
 await reloadTelegramBotRuntime();
 

@@ -45,7 +45,7 @@ export async function getOpenAIClient(userId?: string | null): Promise<OpenAI> {
 
   if (!apiKey) {
     throw new Error(
-      settings.keyMode === "USER"
+      keyMode === "USER"
         ? "OpenAI API key is not configured for this user"
         : "System OpenAI API key is not configured",
     );

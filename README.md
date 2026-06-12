@@ -93,6 +93,30 @@ npm run dev:worker
 npm run dev:dashboard
 ```
 
+## Testing
+
+Fast unit and service tests:
+
+```powershell
+npm test
+```
+
+Full verification with an isolated test database:
+
+```powershell
+npm run test:all
+```
+
+`test:all` starts a separate PostgreSQL container from `docker-compose.test.yml` on port `55432`, applies the Prisma schema, runs typecheck, unit tests, build, and Playwright e2e tests. E2E tests create users under `@e2e.fintrack.test`, seed finance data, verify the dashboard through the browser, and clean those test users afterward.
+
+To remove the isolated test database volume:
+
+```powershell
+npm run test:db:down
+```
+
+Do not point `DATABASE_URL` or `TEST_DATABASE_URL` at the real FinTrack database when running e2e tests.
+
 ## Monobank
 
 Use the dashboard or Telegram bot to connect Monobank with a personal API token.
