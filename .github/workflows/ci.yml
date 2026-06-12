@@ -46,6 +46,8 @@ jobs:
         run: npm ci
       - name: Generate Prisma client
         run: npx prisma generate
+      - name: Prepare test database
+        run: npx prisma db push --skip-generate
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
       - name: Typecheck
