@@ -61,6 +61,11 @@ export type CreateBudgetInput = {
 
 export type UpdateBudgetInput = Partial<CreateBudgetInput>;
 
+export type SyncBudgetsFromPreviousMonthInput = {
+  month?: string;
+  userId?: string;
+};
+
 export type CreateGoalInput = {
   color?: string;
   deadline?: string;
@@ -381,6 +386,76 @@ export async function createBudget(input: CreateBudgetInput) {
   });
 
   return serializeBudget(budget, []);
+}
+
+export async function syncBudgetsFromPreviousMonth(input: SyncBudgetsFromPreviousMonthInput = {}) {
+  const userId = await resolveUserId(input.userId);
+  const month = startOfMonth(input.month ? new Date(input.month) : new Date());
+  const nextMonth = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 1));
+  const previousMonth = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() - 1, 1));
+  const db = getDb();
+
+  const [previousBudgets, currentBudgets] = await Promise.all([
+    db.budget.findMany({
+      include: { category: true },
+      orderBy: { name: "asc" },
+      where: {
+        ...ownerScoped(userId),
+        month: {
+          gte: previousMonth,
+          lt: month,
+        },
+      },
+    }),
+    db.budget.findMany({
+      include: { category: true },
+      orderBy: { name: "asc" },
+      where: {
+        ...ownerScoped(userId),
+        month: {
+          gte: month,
+          lt: nextMonth,
+        },
+      },
+    }),
+  ]);
+
+  const currentCategoryIds = new Set(currentBudgets.map((budget) => budget.categoryId).filter(Boolean));
+  const currentNames = new Set(currentBudgets.map((budget) => normalizeBudgetNameForMatch(budget.name)));
+  const created = [];
+  let skippedCount = 0;
+
+  for (const previousBudget of previousBudgets) {
+    const hasCurrentMatch =
+      (previousBudget.categoryId && currentCategoryIds.has(previousBudget.categoryId)) ||
+      currentNames.has(normalizeBudgetNameForMatch(previousBudget.name));
+
+    if (hasCurrentMatch) {
+      skippedCount += 1;
+      continue;
+    }
+
+    const budget = await db.budget.create({
+      data: {
+        categoryId: previousBudget.categoryId,
+        color: previousBudget.color,
+        limit: previousBudget.limit,
+        month,
+        name: previousBudget.name,
+        userId,
+      },
+      include: { category: true },
+    });
+    created.push(budget);
+    if (budget.categoryId) currentCategoryIds.add(budget.categoryId);
+    currentNames.add(normalizeBudgetNameForMatch(budget.name));
+  }
+
+  return {
+    budgets: created.map((budget) => serializeBudget(budget, [])),
+    createdCount: created.length,
+    skippedCount,
+  };
 }
 
 export async function createGoal(input: CreateGoalInput) {
@@ -1212,6 +1287,10 @@ function decimal(value: MoneyInput) {
 
 function startOfMonth(value: Date) {
   return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), 1));
+}
+
+function normalizeBudgetNameForMatch(value: string) {
+  return value.trim().toLocaleLowerCase("uk-UA");
 }
 
 function slugify(value: string) {

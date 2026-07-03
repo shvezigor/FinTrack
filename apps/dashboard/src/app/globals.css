@@ -1784,6 +1784,20 @@ body.is-resizing-table * {
   overflow-x: auto;
 }
 
+.budget-panel-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.budget-panel-actions .secondary-button {
+  gap: 8px;
+  min-height: 34px;
+  white-space: nowrap;
+}
+
 .budget-comparison-chart-scroll {
   max-height: 380px;
   overflow-x: hidden;

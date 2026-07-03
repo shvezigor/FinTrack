@@ -69,6 +69,7 @@ import {
   revokeUserSecret,
   saveTelegramAdminSettings,
   shouldUseTelegramPolling,
+  syncBudgetsFromPreviousMonth,
   testOpenAI,
   updateBudget,
   updateCategory,
@@ -680,6 +681,30 @@ app.post("/api/budgets", async (request, reply) => {
 app.get("/api/budgets/insights", async (request, reply) => {
   if (!(await requireDashboardAuth(request, reply))) return;
   return getBudgetInsights(getRequestUserId(request));
+});
+
+app.post("/api/budgets/sync-previous-month", async (request, reply) => {
+  if (!(await requireDashboardAuth(request, reply))) return;
+  const body = request.body as Parameters<typeof syncBudgetsFromPreviousMonth>[0] | undefined;
+  const userId = getRequestUserId(request);
+  const result = await syncBudgetsFromPreviousMonth({ ...body, userId });
+  if (result.createdCount > 0) {
+    await writeAuditLog({
+      action: "budget.synced",
+      context: {
+        ipAddress: request.ip,
+        userAgent: request.headers["user-agent"] ?? null,
+      },
+      entityId: null,
+      entityType: "budget",
+      metadata: {
+        createdCount: result.createdCount,
+        skippedCount: result.skippedCount,
+      },
+      userId,
+    });
+  }
+  return result;
 });
 
 app.patch("/api/budgets/:id", async (request, reply) => {
