@@ -285,6 +285,7 @@ function formatBudgetAuditLog(log: {
   const actionMap: Record<string, string> = {
     "budget.created": `Створено бюджет ${budgetName}`,
     "budget.deleted": `Видалено бюджет ${budgetName}`,
+    "budget.synced": "Синхронізовано бюджети з попереднього місяця",
     "budget.updated": `Оновлено бюджет ${budgetName}`,
   };
   return `${actionMap[log.action] ?? "Оновлено бюджет"} · ${formatDateTime(log.createdAt)}`;

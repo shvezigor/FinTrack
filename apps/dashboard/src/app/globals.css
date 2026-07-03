@@ -1672,12 +1672,17 @@ body.is-resizing-table * {
 
 .transactions-page .filter-bar {
   align-items: stretch;
-  grid-template-columns: minmax(240px, 1.3fr) repeat(4, minmax(0, 208px)) minmax(112px, auto);
+  grid-template-columns: minmax(240px, 1.3fr) repeat(3, minmax(150px, 208px)) minmax(180px, 220px) minmax(112px, auto);
   padding: 12px;
 }
 
 .transactions-page .filter-bar.has-trailing-action {
-  grid-template-columns: minmax(240px, 1.3fr) repeat(4, minmax(0, 208px)) minmax(112px, auto) minmax(150px, auto);
+  grid-template-columns:
+    minmax(240px, 1.3fr)
+    repeat(3, minmax(150px, 208px))
+    minmax(190px, 220px)
+    minmax(112px, auto)
+    minmax(160px, auto);
 }
 
 .transactions-page .filter-bar .search-box.compact,
@@ -1693,6 +1698,16 @@ body.is-resizing-table * {
 .transactions-page .filter-bar .select-like {
   gap: 0 8px;
   padding: 0 12px;
+}
+
+.transactions-page .filter-bar .range-control .select-like {
+  justify-items: stretch;
+}
+
+.transactions-page .filter-bar .range-control .select-like span {
+  line-height: 1.25;
+  text-align: center;
+  white-space: normal;
 }
 
 .transactions-page .filter-bar .select-like small {
@@ -1782,6 +1797,20 @@ body.is-resizing-table * {
   display: grid;
   gap: 2px;
   overflow-x: auto;
+}
+
+.budget-panel-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.budget-panel-actions .secondary-button {
+  gap: 8px;
+  min-height: 34px;
+  white-space: nowrap;
 }
 
 .budget-comparison-chart-scroll {

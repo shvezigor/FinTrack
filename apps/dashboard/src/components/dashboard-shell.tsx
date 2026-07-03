@@ -1347,6 +1347,36 @@ export function DashboardShell() {
             setLoading(false);
         }
     }
+    async function syncBudgetsFromPreviousMonth() {
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await fetch("/api/proxy/budgets/sync-previous-month", {
+                body: JSON.stringify({}),
+                headers: authHeaders(sessionToken, legacyPassword, true),
+                method: "POST"
+            });
+            const result = await response.json().catch(()=>null);
+            if (!response.ok) throw new Error(result?.error ?? t("toast.budgetSyncError"));
+            if (result?.budgets?.length) {
+                setSnapshot((current)=>({
+                        ...current,
+                        budgets: [
+                            ...result.budgets,
+                            ...current.budgets.filter((row)=>!result.budgets.some((budget)=>budget.id === row.id))
+                        ]
+                    }));
+            }
+            await loadSnapshot(sessionToken, legacyPassword, {
+                silent: true
+            });
+            showToast(t("toast.budgetSyncSuccess").replace("{count}", String(result?.createdCount ?? 0)), "success");
+        } catch (syncError) {
+            showToast(syncError instanceof Error ? syncError.message : t("toast.budgetSyncError"), "error");
+        } finally{
+            setLoading(false);
+        }
+    }
     async function deleteLiabilityRecord(id, name) {
         if (actionConfirmationEnabled) {
             appConfirm(t("confirm.deleteLiability").replace("{name}", name), ()=>void _deleteLiabilityRecord(id, name));
@@ -2042,9 +2072,11 @@ export function DashboardShell() {
                                 budgets: budgets,
                                 budgetInsights: budgetInsights,
                                 hasRealBudgets: hasRealBudgets,
+                                loading: loading,
                                 monthExpense: monthExpense,
                                 onDeleteBudget: deleteBudgetRecord,
-                                onOpenModal: openModal
+                                onOpenModal: openModal,
+                                onSyncPreviousMonth: syncBudgetsFromPreviousMonth
                             }) : null,
                             activePage === "goals" ? /*#__PURE__*/ _jsx(GoalsPage, {
                                 goalImageGeneratingId: goalImageGeneratingId,
@@ -3164,7 +3196,7 @@ function ExpensesPage({ accounts, categories, expenses, loading, onDeleteExpense
         ]
     });
 }
-function BudgetsPage({ budgets, budgetInsights, hasRealBudgets, monthExpense, onDeleteBudget, onOpenModal }) {
+function BudgetsPage({ budgets, budgetInsights, hasRealBudgets, loading, monthExpense, onDeleteBudget, onOpenModal, onSyncPreviousMonth }) {
     const { t } = useI18n();
     const [budgetSort, setBudgetSort] = useState({
         direction: "desc",
@@ -3244,14 +3276,31 @@ function BudgetsPage({ budgets, budgetInsights, hasRealBudgets, monthExpense, on
                 className: "two-column",
                 children: [
                     /*#__PURE__*/ _jsx(Panel, {
-                        actionNode: /*#__PURE__*/ _jsx("button", {
-                            "aria-label": t("budgets.createBudget"),
-                            className: "icon-button",
-                            onClick: ()=>onOpenModal("budget"),
-                            type: "button",
-                            children: /*#__PURE__*/ _jsx(Icon, {
-                                name: "plus"
-                            })
+                        actionNode: /*#__PURE__*/ _jsxs("div", {
+                            className: "budget-panel-actions",
+                            children: [
+                                /*#__PURE__*/ _jsxs("button", {
+                                    className: "secondary-button compact",
+                                    disabled: loading,
+                                    onClick: onSyncPreviousMonth,
+                                    type: "button",
+                                    children: [
+                                        /*#__PURE__*/ _jsx(Icon, {
+                                            name: "refresh"
+                                        }),
+                                        t("budgets.syncPreviousMonth")
+                                    ]
+                                }),
+                                /*#__PURE__*/ _jsx("button", {
+                                    "aria-label": t("budgets.createBudget"),
+                                    className: "icon-button",
+                                    onClick: ()=>onOpenModal("budget"),
+                                    type: "button",
+                                    children: /*#__PURE__*/ _jsx(Icon, {
+                                        name: "plus"
+                                    })
+                                })
+                            ]
                         }),
                         title: t("budgets.byCategory"),
                         children: /*#__PURE__*/ _jsx(BudgetTable, {

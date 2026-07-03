@@ -61,6 +61,11 @@ export type CreateBudgetInput = {
 
 export type UpdateBudgetInput = Partial<CreateBudgetInput>;
 
+export type SyncBudgetsFromPreviousMonthInput = {
+  month?: string;
+  userId?: string;
+};
+
 export type CreateGoalInput = {
   color?: string;
   deadline?: string;
@@ -116,12 +121,19 @@ export type CategoryInput = {
 };
 
 const categoryIconNames = new Set([
+  "analytics",
+  "bank",
+  "bell",
   "book",
+  "briefcase",
+  "calendar",
   "car",
   "cart",
+  "chart",
   "expenses",
   "fuel",
   "gift",
+  "goals",
   "heart",
   "home",
   "income",
@@ -130,11 +142,16 @@ const categoryIconNames = new Set([
   "openai",
   "pet",
   "phone",
+  "piggy",
   "plane",
   "receipt",
+  "shield",
   "shirt",
   "smile",
+  "spark",
   "subscriptions",
+  "transactions",
+  "user",
   "wallet",
 ]);
 
@@ -369,6 +386,76 @@ export async function createBudget(input: CreateBudgetInput) {
   });
 
   return serializeBudget(budget, []);
+}
+
+export async function syncBudgetsFromPreviousMonth(input: SyncBudgetsFromPreviousMonthInput = {}) {
+  const userId = await resolveUserId(input.userId);
+  const month = startOfMonth(input.month ? new Date(input.month) : new Date());
+  const nextMonth = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() + 1, 1));
+  const previousMonth = new Date(Date.UTC(month.getUTCFullYear(), month.getUTCMonth() - 1, 1));
+  const db = getDb();
+
+  const [previousBudgets, currentBudgets] = await Promise.all([
+    db.budget.findMany({
+      include: { category: true },
+      orderBy: { name: "asc" },
+      where: {
+        ...ownerScoped(userId),
+        month: {
+          gte: previousMonth,
+          lt: month,
+        },
+      },
+    }),
+    db.budget.findMany({
+      include: { category: true },
+      orderBy: { name: "asc" },
+      where: {
+        ...ownerScoped(userId),
+        month: {
+          gte: month,
+          lt: nextMonth,
+        },
+      },
+    }),
+  ]);
+
+  const currentCategoryIds = new Set(currentBudgets.map((budget) => budget.categoryId).filter(Boolean));
+  const currentNames = new Set(currentBudgets.map((budget) => normalizeBudgetNameForMatch(budget.name)));
+  const created = [];
+  let skippedCount = 0;
+
+  for (const previousBudget of previousBudgets) {
+    const hasCurrentMatch =
+      (previousBudget.categoryId && currentCategoryIds.has(previousBudget.categoryId)) ||
+      currentNames.has(normalizeBudgetNameForMatch(previousBudget.name));
+
+    if (hasCurrentMatch) {
+      skippedCount += 1;
+      continue;
+    }
+
+    const budget = await db.budget.create({
+      data: {
+        categoryId: previousBudget.categoryId,
+        color: previousBudget.color,
+        limit: previousBudget.limit,
+        month,
+        name: previousBudget.name,
+        userId,
+      },
+      include: { category: true },
+    });
+    created.push(budget);
+    if (budget.categoryId) currentCategoryIds.add(budget.categoryId);
+    currentNames.add(normalizeBudgetNameForMatch(budget.name));
+  }
+
+  return {
+    budgets: created.map((budget) => serializeBudget(budget, [])),
+    createdCount: created.length,
+    skippedCount,
+  };
 }
 
 export async function createGoal(input: CreateGoalInput) {
@@ -1129,12 +1216,19 @@ function inferCategoryIcon(category: string | null) {
 function categoryColorForIcon(icon?: string | null) {
   const normalized = normalizeCategoryIcon(icon);
   const colors: Record<string, string> = {
+    analytics: "#0f766e",
+    bank: "#1d4ed8",
+    bell: "#2563eb",
     book: "#7c3aed",
+    briefcase: "#7c3aed",
+    calendar: "#475569",
     car: "#06b6d4",
     cart: "#22c55e",
+    chart: "#16a34a",
     expenses: "#64748b",
     fuel: "#64748b",
     gift: "#f97316",
+    goals: "#7c3aed",
     heart: "#ec4899",
     home: "#3b82f6",
     income: "#22c55e",
@@ -1143,11 +1237,16 @@ function categoryColorForIcon(icon?: string | null) {
     openai: "#0ea5e9",
     pet: "#a855f7",
     phone: "#84cc16",
+    piggy: "#f43f5e",
     plane: "#2563eb",
     receipt: "#64748b",
+    shield: "#0284c7",
     shirt: "#14b8a6",
     smile: "#8b5cf6",
+    spark: "#8b5cf6",
     subscriptions: "#f59e0b",
+    transactions: "#64748b",
+    user: "#64748b",
     wallet: "#22c55e",
   };
   return colors[normalized] ?? "#22c55e";
@@ -1188,6 +1287,10 @@ function decimal(value: MoneyInput) {
 
 function startOfMonth(value: Date) {
   return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), 1));
+}
+
+function normalizeBudgetNameForMatch(value: string) {
+  return value.trim().toLocaleLowerCase("uk-UA");
 }
 
 function slugify(value: string) {
